@@ -29,7 +29,6 @@ def compute_derivatives(x, y, u):
     dudxxxx = gradient(dudxxx, x)
     dudxxyy = gradient(dudxxy, y)
     dudyyyy = gradient(dudyyy, y)
-    #dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = dudxx.cuda(), dudyy.cuda(), dudxxxx.cuda(), dudyyyy.cuda(), dudxxyy.cuda()
 
     return dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy
 
@@ -41,18 +40,10 @@ def compute_moments(D, nue, dudxx, dudyy):
     return mx, my
 
 
-def min_max_normalization(data, min_val, max_val):
-    return 2 * (data - min_val) / (max_val - min_val) - 1
-
-
-def inv(data):
-    return (data + 1) * 10 / 2
-
-
 class KirchhoffDataset(Dataset):
 
     def __init__(self, u_val, T, nue, E, H, W, total_length, den: float, omega: float, batch_size_domain,
-                 batch_size_boundary, known_points_x, known_points_y, nkp):
+                 batch_size_boundary, known_points_x, known_points_y, nkp, device):
         self.u_val = u_val
         self.T = T
         self.nue = nue
@@ -69,6 +60,7 @@ class KirchhoffDataset(Dataset):
         self.known_points_x = known_points_x
         self.known_points_y = known_points_y
         self.nkp = nkp
+        self.device = device
 
     def __getitem__(self, item):
         x, y = self.training_batch()
@@ -100,8 +92,8 @@ class KirchhoffDataset(Dataset):
         y_b4 = torch.zeros((self.batch_size_boundary, 1)) + self.H
         y = torch.cat([y_t, y_in, y_b1, y_b2, y_b3, y_b4], dim=0)  # .to(self.device)
 
-        #x = x.cuda()  # TODO
-        #y = y.cuda()
+        x = x.to(self.device)  # CUDA
+        y = y.to(self.device)
 
         return x, y
 
@@ -112,8 +104,9 @@ class KirchhoffDataset(Dataset):
 
         x = x[None, ...]
         y = y[None, ...]
+        x = x.to(self.device)  # CUDA
+        y = y.to(self.device)
 
-        # Assuming self.u_val is a PyTorch function
         u = self.u_val(x, y)
 
         return x, y, u
@@ -123,18 +116,10 @@ class KirchhoffDataset(Dataset):
         preds = np.squeeze(preds, axis=0)
         x = np.squeeze(x, axis=0)
         y = np.squeeze(y, axis=0)
-        # x = x[self.nkp:]
-        # y = y[self.nkp:]
         x_t = x[:self.nkp]
         y_t = y[:self.nkp]
         u_t = np.squeeze(preds[:self.nkp, 0:1])
-        # u = np.squeeze(preds[self.nkp:, 0:1])
         u = np.squeeze(preds[:, 0:1])
-        # dudxx = np.squeeze(preds[self.nkp:, 1:2])
-        # dudyy = np.squeeze(preds[self.nkp:, 2:3])
-        # dudxxxx = np.squeeze(preds[self.nkp:, 3:4])
-        # dudyyyy = np.squeeze(preds[self.nkp:, 4:5])
-        # dudxxyy = np.squeeze(preds[self.nkp:, 5:6])
         dudxx = np.squeeze(preds[:, 1:2])
         dudyy = np.squeeze(preds[:, 2:3])
         dudxxxx = np.squeeze(preds[:, 3:4])
@@ -146,19 +131,26 @@ class KirchhoffDataset(Dataset):
 
         L_f = f ** 2
         L_t = err_t ** 2
+        L_t = torch.zeros(160)  # FREE
 
         # determine which points are on the boundaries of the domain
         # if a point is on either of the boundaries, its value is 1 and 0 otherwise
-        x_lower = torch.where(x <= EPS, torch.tensor(1.0), torch.tensor(0.0))
-        x_upper = torch.where(x >= self.W - EPS, torch.tensor(1.0), torch.tensor(0.0))
-        y_lower = torch.where(y <= EPS, torch.tensor(1.0), torch.tensor(0.0))
-        y_upper = torch.where(y >= self.H - EPS, torch.tensor(1.0), torch.tensor(0.0))
+        x_lower = torch.where(x <= EPS, torch.tensor(1.0, device=self.device), torch.tensor(0.0, device=self.device))
+        x_upper = torch.where(x >= self.W - EPS, torch.tensor(1.0, device=self.device), torch.tensor(0.0, device=self.device))
+        y_lower = torch.where(y <= EPS, torch.tensor(1.0, device=self.device), torch.tensor(0.0, device=self.device))
+        y_upper = torch.where(y >= self.H - EPS, torch.tensor(1.0, device=self.device), torch.tensor(0.0, device=self.device))
+        #x_lower = torch.where(x <= EPS, torch.tensor(1.0), torch.tensor(0.0))
+        #x_upper = torch.where(x >= self.W - EPS, torch.tensor(1.0), torch.tensor(0.0))
+        #y_lower = torch.where(y <= EPS, torch.tensor(1.0), torch.tensor(0.0))
+        #y_upper = torch.where(y >= self.H - EPS, torch.tensor(1.0), torch.tensor(0.0))
 
         L_b0 = torch.mul((x_lower + x_upper + y_lower + y_upper), u) ** 2
+        L_b0 = torch.zeros(1360)  # FREE
 
         # compute 2nd order boundary condition loss
         mx, my = compute_moments(self.D, self.nue, dudxx, dudyy)
-        L_b2 = torch.mul((x_lower + x_upper), mx) ** 2 + torch.mul((y_lower + y_upper), my) ** 2
+        L_b2 = torch.mul((x_lower + x_upper), mx) ** 2 + torch.mul((y_lower + y_upper), my) ** 2  # FREE
+        L_b2 = torch.zeros(1360)
 
         if eval:
             L_u = (self.u_val(x, y) - u) ** 2
@@ -191,8 +183,8 @@ class KirchhoffDataset(Dataset):
 
         else:
             u_real, u_pred, mx, my, f = self.__validation_results(pinn, image_width, image_height)
-            u_real = u_real.detach().numpy().reshape(image_width, image_height)
-            u_pred = u_pred.detach().numpy().reshape(image_width, image_height)
+            u_real = u_real.cpu().detach().numpy().reshape(image_width, image_height)  # CUDA
+            u_pred = u_pred.cpu().detach().numpy().reshape(image_width, image_height)  # CUDA
 
             self.__plot_3d(u_real, 'Real Displacement (m)')
 
@@ -202,7 +194,7 @@ class KirchhoffDataset(Dataset):
             fig, axs = plt.subplots(1, 2, figsize=(8, 3.2))
             self.__show_image(u_pred, axs[0], 'Predicted Displacement (m)')
             self.__show_image((u_pred - u_real) ** 2, axs[1], 'Squared Error Displacement')
-            NMSE = (np.linalg.norm(u_pred - u_real) ** 2) / (np.linalg.norm(u_pred) ** 2)
+            NMSE = (np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2)
             print('NMSE: ', NMSE)
 
             for ax in axs.flat:

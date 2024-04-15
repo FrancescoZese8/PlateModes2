@@ -79,7 +79,7 @@ class ReLoBRaLoKirchhoffLoss(KirchhoffLoss):
         self.lambdas = [var.detach().requires_grad_(False) for var in new_lambdas]
         # Calcola la loss ponderata
         l = [lam * loss for lam, loss in zip(self.lambdas, losses)]
-        loss = torch.sum(torch.stack(l))
+        #  loss = torch.sum(torch.stack(l))
         # Memorizza le losses correnti in self.last_losses per essere accedute nella prossima iterazione
         self.last_losses = [loss.clone().detach() for loss in losses]
 
