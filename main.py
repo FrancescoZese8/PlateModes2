@@ -12,24 +12,14 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
 
-dispFile = pd.read_csv('DisplacementFieldCSV.csv')  # Read CSV and create eigenFreq dictionary
-eigenFreq = {}
-for index, row in dispFile.iterrows():
-    if 'i' in str(row.iloc[0]):
-        continue
-    label = row.iloc[0]
-    data = row.iloc[1:]
-    eigenFreq[label] = data.to_dict()
-
-
-num_epochs = 400  # 500
-n_step = 100  # 50
+num_epochs = 300  # 500
+n_step = 80  # 50
 batch_size = 32
 lr = 0.001
 batch_size_domain = 800
 batch_size_boundary = 100
 
-steps_til_summary = 10
+steps_til_summary = 12
 opt_model = 'silu'
 mode = 'pinn'
 clip_grad = 1.0
@@ -46,27 +36,53 @@ nue = 0.35
 p0 = 0.15
 den = 2700
 
-n = 2
-m = 2
-percentage_of_known_points = 20  # %
+#n = 2
+#m = 2
+#percentage_of_known_points = 20  # %
+
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 # omega = ((n * np.pi / W) ** 2 + (m * np.pi / H) ** 2) * np.sqrt(D / (den * T)) #  FREE
-omega = 0.030270295746375724
-print('omega:', omega)
-nkp = percentage_of_known_points * batch_size_domain // 100
-known_points_x = torch.rand((nkp, 1)) * W
-known_points_y = torch.rand((nkp, 1)) * H
+#print('omega:', omega)
+#nkp = percentage_of_known_points * batch_size_domain // 100
+#known_points_x = torch.rand((nkp, 1)) * W
+#known_points_y = torch.rand((nkp, 1)) * H
 
 
-def u_val(x, y):
-    return (torch.sin(n * np.pi * x / W) * torch.sin(m * np.pi * y / H)) / 100
+dispFile = pd.read_csv('DisplacementFieldCSV.csv')  # Read CSV and create eigenFreq dictionary
+eigenFreq = {}
+for index, row in dispFile.iterrows():
+    if 'i' in str(row.iloc[0]):
+        continue
+    label = row.iloc[0]
+    data = row.iloc[1:].astype(float)
+    eigenFreq[label] = data
+
+num_known_points = 121
+eigen_mode = 8
+label = list(eigenFreq.keys())[eigen_mode-1]
+print('EigenFrequency: ', label)
+omega = float(label)
+known_disp = eigenFreq[label]
+known_disp = torch.tensor(known_disp)
+known_disp = known_disp.to(device)  # CUDA
+known_disp = known_disp * 1000
+
+'''dim_m = int(np.sqrt(num_known_points))
+known_disp = [[0 for _ in range(dim_m)] for _ in range(dim_m)]  # Matrix representing known displacement point x,y
+for i in range(dim_m):
+    for j in range(dim_m):
+        index = i * dim_m + j
+        known_disp[i][j] = eigenFreq[label][index]'''
 
 
-plate = dataSet.KirchhoffDataset(u_val=u_val, T=T, nue=nue, E=E, W=W, H=H, total_length=total_length, den=den,
+#def u_val(x, y):
+    #return (torch.sin(n * np.pi * x / W) * torch.sin(m * np.pi * y / H)) / 100
+
+
+plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, W=W, H=H, total_length=total_length, den=den,
                                  omega=omega, batch_size_domain=batch_size_domain, batch_size_boundary=
-                                 batch_size_boundary, known_points_x=known_points_x, known_points_y=known_points_y,
-                                 nkp=nkp, device=device)
+                                 batch_size_boundary, known_disp=known_disp, device=device)
 # plate.visualise()
 data_loader = DataLoader(plate, shuffle=True, batch_size=batch_size, pin_memory=False, num_workers=0)
 model = modules.PINNet(out_features=1, type=opt_model, mode=mode)

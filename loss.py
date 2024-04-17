@@ -40,7 +40,7 @@ class ReLoBRaLoKirchhoffLoss(KirchhoffLoss):
 
     def call(self, preds, xy):
         xy = xy['coords']
-        x, y = xy[:, :, 0], xy[:, :, 1]
+        x, y = xy[:, 0], xy[:, 1]
         preds = preds['model_out']
         EPS = 1e-7
 
