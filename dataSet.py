@@ -4,7 +4,6 @@ from typing import Tuple
 from torch.utils.data import Dataset
 import matplotlib.pyplot as plt
 
-
 EPS = 1e-6
 
 
@@ -43,7 +42,7 @@ def compute_moments(D, nue, dudxx, dudyy):
 class KirchhoffDataset(Dataset):
 
     def __init__(self, T, nue, E, H, W, total_length, den: float, omega: float, batch_size_domain,
-                 batch_size_boundary, known_disp, device):
+                 batch_size_boundary, known_disp, free_edges, device):
         self.T = T
         self.nue = nue
         self.E = E
@@ -57,6 +56,7 @@ class KirchhoffDataset(Dataset):
         self.batch_size_domain = batch_size_domain
         self.batch_size_boundary = batch_size_boundary
         self.known_disp = known_disp
+        self.free_edges = free_edges
         self.device = device
 
     def __getitem__(self, item):
@@ -73,12 +73,14 @@ class KirchhoffDataset(Dataset):
         torch.Tensor, torch.Tensor]:
 
         x_t, y_t = [], []
-        for i in range(self.W+1):
-            for j in range(self.W+1):
+        for i in range(self.W + 1):
+            for j in range(self.W + 1):
                 x_t.append(i)
                 y_t.append(j)
 
         x_t = torch.tensor(x_t)
+        x_t = x_t[::4]
+        # print('x_t: ', x_t.shape)
         x_t = x_t.unsqueeze(1)
         x_in = torch.rand((self.batch_size_domain, 1)) * self.W
         x_b1 = torch.zeros((self.batch_size_boundary, 1))
@@ -89,6 +91,8 @@ class KirchhoffDataset(Dataset):
         x = torch.cat([x_t, x_in, x_b1, x_b2, x_b3, x_b4], dim=0)
 
         y_t = torch.tensor(y_t)
+        y_t = y_t[::4]
+        # print('y_t: ', y_t.shape)
         y_t = y_t.unsqueeze(1)
         y_in = torch.rand((self.batch_size_domain, 1)) * self.H
         y_b1 = torch.rand((self.batch_size_boundary, 1)) * self.H
@@ -102,15 +106,14 @@ class KirchhoffDataset(Dataset):
 
         return x, y
 
-
     def compute_loss(self, x, y, preds, eval=False):
         # governing equation loss
         preds = np.squeeze(preds, axis=0)
         x = np.squeeze(x, axis=0)
         y = np.squeeze(y, axis=0)
         t_len = len(self.known_disp)
-        #x_t = x[:t_len]
-        #y_t = y[:t_len]
+        # x_t = x[:t_len]
+        # y_t = y[:t_len]
         u_t = np.squeeze(preds[:t_len, 0:1])
         u = np.squeeze(preds[:, 0:1])
         dudxx = np.squeeze(preds[:, 1:2])
@@ -123,51 +126,43 @@ class KirchhoffDataset(Dataset):
                 self.den * self.T * (self.omega ** 2)) / self.D * u
 
         L_f = f ** 2
-        #L_f = torch.zeros(1321)
+        #L_f = torch.zeros(1231)
         #L_f = L_f.to(self.device)
+
         L_t = err_t ** 2
 
-        # determine which points are on the boundaries of the domain
-        # if a point is on either of the boundaries, its value is 1 and 0 otherwise
-        x_lower = torch.where(x <= EPS, torch.tensor(1.0, device=self.device), torch.tensor(0.0, device=self.device))  #  CUDA
-        x_upper = torch.where(x >= self.W - EPS, torch.tensor(1.0, device=self.device), torch.tensor(0.0, device=self.device))
-        y_lower = torch.where(y <= EPS, torch.tensor(1.0, device=self.device), torch.tensor(0.0, device=self.device))
-        y_upper = torch.where(y >= self.H - EPS, torch.tensor(1.0, device=self.device), torch.tensor(0.0, device=self.device))
-        #x_lower = torch.where(x <= EPS, torch.tensor(1.0), torch.tensor(0.0))
-        #x_upper = torch.where(x >= self.W - EPS, torch.tensor(1.0), torch.tensor(0.0))
-        #y_lower = torch.where(y <= EPS, torch.tensor(1.0), torch.tensor(0.0))
-        #y_upper = torch.where(y >= self.H - EPS, torch.tensor(1.0), torch.tensor(0.0))
+        if not self.free_edges:
+            # determine which points are on the boundaries of the domain
+            # if a point is on either of the boundaries, its value is 1 and 0 otherwise
+            x_lower = torch.where(x <= EPS, torch.tensor(1.0, device=self.device),
+                                  torch.tensor(0.0, device=self.device))  # CUDA
+            x_upper = torch.where(x >= self.W - EPS, torch.tensor(1.0, device=self.device),
+                                  torch.tensor(0.0, device=self.device))
+            y_lower = torch.where(y <= EPS, torch.tensor(1.0, device=self.device),
+                                  torch.tensor(0.0, device=self.device))
+            y_upper = torch.where(y >= self.H - EPS, torch.tensor(1.0, device=self.device),
+                                  torch.tensor(0.0, device=self.device))
+            # x_lower = torch.where(x <= EPS, torch.tensor(1.0), torch.tensor(0.0))
+            # x_upper = torch.where(x >= self.W - EPS, torch.tensor(1.0), torch.tensor(0.0))
+            # y_lower = torch.where(y <= EPS, torch.tensor(1.0), torch.tensor(0.0))
+            # y_upper = torch.where(y >= self.H - EPS, torch.tensor(1.0), torch.tensor(0.0))
 
-        #L_b0 = torch.mul((x_lower + x_upper + y_lower + y_upper), u) ** 2
-        L_b0 = torch.zeros(1321)  # FREE
+            L_b0 = torch.mul((x_lower + x_upper + y_lower + y_upper), u) ** 2
 
-        # compute 2nd order boundary condition loss
-        mx, my = compute_moments(self.D, self.nue, dudxx, dudyy)
-        #L_b2 = torch.mul((x_lower + x_upper), mx) ** 2 + torch.mul((y_lower + y_upper), my) ** 2  # FREE
-        L_b2 = torch.zeros(1321)
+            # compute 2nd order boundary condition loss
+            mx, my = compute_moments(self.D, self.nue, dudxx, dudyy)
+            L_b2 = torch.mul((x_lower + x_upper), mx) ** 2 + torch.mul((y_lower + y_upper), my) ** 2
 
-        if eval:
-            L_u = torch.zeros(1321)
+            if eval:
+                L_u = torch.zeros(self.batch_size_domain + 4 * self.batch_size_boundary + t_len)  # TODO
 
-            return L_f, L_b0, L_b2, L_u, L_t
-        return L_f, L_b0, L_b2, L_t
-
-    '''def validation_batch(self, grid_width=64, grid_height=64):
-        x, y = np.mgrid[0:self.W:complex(0, grid_width), 0:self.H:complex(0, grid_height)]
-        x = torch.tensor(x.reshape(grid_width * grid_height, 1), dtype=torch.float32)
-        y = torch.tensor(y.reshape(grid_width * grid_height, 1), dtype=torch.float32)
-
-        x = x[None, ...]
-        y = y[None, ...]
-        x = x.to(self.device)  # CUDA
-        y = y.to(self.device)
-
-        u = self.known_disp[x_t][y_t]
-
-        return x, y, u'''
+                return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_u': L_u, 'L_t': L_t}
+            return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_t': L_t}
+        else:
+            return {'L_f': L_f, 'L_t': L_t}
 
     def __validation_results(self, pinn, image_width=64, image_height=64):
-        #x, y, u_real = self.validation_batch(image_width, image_height)
+        # x, y, u_real = self.validation_batch(image_width, image_height)
         x, y = np.mgrid[0:self.W:complex(0, image_width), 0:self.H:complex(0, image_height)]
         x = torch.tensor(x.reshape(image_width * image_height, 1), dtype=torch.float32)
         y = torch.tensor(y.reshape(image_width * image_height, 1), dtype=torch.float32)
@@ -187,17 +182,17 @@ class KirchhoffDataset(Dataset):
     def visualise(self, pinn=None, image_width=64, image_height=64):
 
         u_pred, mx, my, f = self.__validation_results(pinn, image_width, image_height)
-        #u_real = u_real.cpu().detach().numpy().reshape(image_width, image_height)  # CUDA
+        # u_real = u_real.cpu().detach().numpy().reshape(image_width, image_height)  # CUDA
         u_pred = u_pred.cpu().detach().numpy().reshape(image_width, image_height)  # CUDA
 
-        #self.__plot_3d(u_real, 'Real Displacement (m)')
+        # self.__plot_3d(u_real, 'Real Displacement (m)')
 
         # Plot 3D for u_pred
         self.__plot_3d(u_pred, 'Predicted Displacement (m)')
 
         fig, axs = plt.subplots(1, 2, figsize=(8, 3.2))
         self.__show_image(u_pred, axs[0], 'Predicted Displacement (m)')
-        #self.__show_image((u_pred - u_real) ** 2, axs[1], 'Squared Error Displacement')
+        # self.__show_image((u_pred - u_real) ** 2, axs[1], 'Squared Error Displacement')
         ##NMSE = (np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2)
         ##print('NMSE: ', NMSE)
 
@@ -233,5 +228,5 @@ class KirchhoffDataset(Dataset):
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
         ax.set_title(title)
-        ax.invert_xaxis()
+        #ax.invert_xaxis()
         plt.show()

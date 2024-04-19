@@ -20,8 +20,7 @@ class KirchhoffLoss(torch.nn.Module):
         xy = xy['model_coords']
         x, y = xy[:, :, 0], xy[:, :, 1]
         preds = preds['model_out']
-        L_f, L_b0, L_b2, L_t = self.plate.compute_loss(x, y, preds)
-        return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_t': L_t}
+        return self.plate.compute_loss(x, y, preds)
 
 
 class ReLoBRaLoKirchhoffLoss(KirchhoffLoss):
@@ -40,11 +39,11 @@ class ReLoBRaLoKirchhoffLoss(KirchhoffLoss):
 
     def call(self, preds, xy):
         xy = xy['coords']
-        x, y = xy[:, 0], xy[:, 1]
+        x, y = xy[:, :, 0], xy[:, :, 1]
         preds = preds['model_out']
         EPS = 1e-7
 
-        losses = [torch.mean(loss) for loss in self.plate.compute_loss(x, y, preds)]
+        losses = {key: torch.mean(loss) for key, loss in self.plate.compute_loss(x, y, preds).items()}
 
         cond1 = torch.tensor(self.call_count.data.item() == 0, dtype=torch.bool)
         cond2 = torch.tensor(self.call_count.data.item() == 1, dtype=torch.bool)
@@ -58,7 +57,7 @@ class ReLoBRaLoKirchhoffLoss(KirchhoffLoss):
                                       torch.tensor(cond3, dtype=torch.float32)))
 
         # Calcola nuove lambdas w.r.t. le losses nella precedente iterazione
-        lambdas_hat = [losses[i].item() / (self.last_losses[i].data.item() * self.temperature + EPS)
+        lambdas_hat = [list(losses.values())[i].item() / (self.last_losses[i].data.item() * self.temperature + EPS)
                        for i in range(len(losses))]
 
         lambdas_hat = torch.tensor(lambdas_hat)
@@ -66,7 +65,7 @@ class ReLoBRaLoKirchhoffLoss(KirchhoffLoss):
                        * torch.tensor(len(losses), dtype=torch.float32))
 
         # Calcola nuove lambdas w.r.t. le losses nella prima iterazione
-        init_lambdas_hat = [losses[i].item() / (self.init_losses[i].data.item() * self.temperature + EPS)
+        init_lambdas_hat = [list(losses.values())[i].item() / (self.init_losses[i].data.item() * self.temperature + EPS)
                             for i in range(len(losses))]
 
         init_lambdas_hat = torch.tensor(init_lambdas_hat)
@@ -78,25 +77,26 @@ class ReLoBRaLoKirchhoffLoss(KirchhoffLoss):
              * lambdas_hat[i]) for i in range(len(losses))]
         self.lambdas = [var.detach().requires_grad_(False) for var in new_lambdas]
         # Calcola la loss ponderata
-        l = [lam * loss for lam, loss in zip(self.lambdas, losses)]
+        l = {key: lam * loss for lam, (key, loss) in zip(self.lambdas, losses.items())}
         #  loss = torch.sum(torch.stack(l))
         # Memorizza le losses correnti in self.last_losses per essere accedute nella prossima iterazione
-        self.last_losses = [loss.clone().detach() for loss in losses]
+        self.last_losses = [loss.clone().detach() for loss in losses.values()]
 
         # Nella prima iterazione, memorizza le losses in self.init_losses per essere accedute nelle iterazioni successive
         first_iteration = torch.tensor(self.call_count.data.item() < 1, dtype=torch.float32)
 
-        for i, (var, loss) in enumerate(zip(self.init_losses, losses)):
+        for i, (var, loss) in enumerate(zip(self.init_losses, losses.values())):
             self.init_losses[i].data = (loss.data * first_iteration + var.data * (1 - first_iteration)).detach()
         self.call_count.data += 1
         # Restituisci un dizionario contenente le losses distinte
-        return {'L_f': l[0], 'L_b0': l[1], 'L_b2': l[2], 'L_t': l[3]}
+        return l
 
 
 class KirchhoffMetric(nn.Module):
-    def __init__(self, plate, name='kirchhoff_metric'):
+    def __init__(self, plate, free_edges):
         super(KirchhoffMetric, self).__init__()
         self.plate = plate
+        self.free_edges = free_edges
         self.L_f_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
         self.L_b0_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
         self.L_b2_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
@@ -108,12 +108,16 @@ class KirchhoffMetric(nn.Module):
         y_pred = y_pred['model_out']
         x, y = xy[:, :, 0], xy[:, :, 1]
 
-        L_f, L_b0, L_b2, L_u, L_t = self.plate.compute_loss(x, y, y_pred, eval=True)
-        self.L_f_mean.data = torch.mean(L_f)
-        self.L_b0_mean.data = torch.mean(L_b0)
-        self.L_b2_mean.data = torch.mean(L_b2)
-        self.L_u_mean.data = torch.mean(L_u)
-        self.L_t_mean.data = torch.mean(L_t)
+        compute_loss_dic = self.plate.compute_loss(x, y, y_pred, eval=True)
+        if self.free_edges:
+            self.L_f_mean.data = torch.mean(compute_loss_dic['L_f'])
+            self.L_t_mean.data = torch.mean(compute_loss_dic['L_t'])
+        else:
+            self.L_f_mean.data = torch.mean(compute_loss_dic['L_f'])
+            self.L_b0_mean.data = torch.mean(compute_loss_dic['L_b0'])
+            self.L_b2_mean.data = torch.mean(compute_loss_dic['L_b2'])
+            self.L_u_mean.data = torch.mean(compute_loss_dic['L_u'])
+            self.L_t_mean.data = torch.mean(compute_loss_dic['L_t'])
 
     def reset_state(self):
         self.L_f_mean.data = torch.zeros(1)
@@ -131,20 +135,26 @@ class KirchhoffMetric(nn.Module):
 
 
 class ReLoBRaLoLambdaMetric(nn.Module):
-    def __init__(self, loss, name='relobralo_lambda_metric'):
+    def __init__(self, loss, free_edges, name='relobralo_lambda_metric'):
         super(ReLoBRaLoLambdaMetric, self).__init__()
         self.loss = loss
+        self.free_edges = free_edges
         self.L_f_lambda_mean = CustomVariable(0.0, trainable=False)
         self.L_b0_lambda_mean = CustomVariable(0.0, trainable=False)
         self.L_b2_lambda_mean = CustomVariable(0.0, trainable=False)
         self.L_t_lambda_mean = CustomVariable(0.0, trainable=False)
 
     def update_state(self, xy, y_pred, sample_weight=None):
-        L_f_lambda, L_b0_lambda, L_b2_lambda, L_t_lambda = self.loss.lambdas
-        self.L_f_lambda_mean.assign(L_f_lambda.data.data.item())
-        self.L_b0_lambda_mean.assign(L_b0_lambda.data.data.item())
-        self.L_b2_lambda_mean.assign(L_b2_lambda.data.item())
-        self.L_t_lambda_mean.assign(L_t_lambda.data.item())
+        if self.free_edges:
+            L_f_lambda, L_t_lambda = self.loss.lambdas
+            self.L_f_lambda_mean.assign(L_f_lambda.data.data.item())
+            self.L_t_lambda_mean.assign(L_t_lambda.data.item())
+        else:
+            L_f_lambda, L_b0_lambda, L_b2_lambda, L_t_lambda = self.loss.lambdas
+            self.L_f_lambda_mean.assign(L_f_lambda.data.data.item())
+            self.L_b0_lambda_mean.assign(L_b0_lambda.data.data.item())
+            self.L_b2_lambda_mean.assign(L_b2_lambda.data.item())
+            self.L_t_lambda_mean.assign(L_t_lambda.data.item())
 
     def reset_state(self):
         self.L_f_lambda_mean.assign(0.0)
