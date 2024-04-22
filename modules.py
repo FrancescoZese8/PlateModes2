@@ -13,14 +13,17 @@ class BatchLinear(nn.Linear, MetaModule):
     hypernetwork.'''
     __doc__ = nn.Linear.__doc__
 
-    def forward(self, input, params=None):
+    def forward(self, input_net, params=None):
         if params is None:
             params = OrderedDict(self.named_parameters())
 
         bias = params.get('bias', None)
+        #print('bias: ', bias.shape)
         weight = params['weight']
-
-        output = input.matmul(weight.permute(*[i for i in range(len(weight.shape) - 2)], -1, -2))
+        #print('weight: ', weight.shape)
+        #print('input: ', input_net.shape)
+        output = input_net.matmul(weight.permute(*[i for i in range(len(weight.shape) - 2)], -1, -2))
+        #print('output: ', output.shape)
         output += bias.unsqueeze(-2)
         return output
 
@@ -132,13 +135,16 @@ class PINNet(nn.Module):
 
     def forward(self, model_input):
         # Enables us to compute gradients w.r.t. input
-        coords = model_input['coords']  # .requires_grad_(True)
+        coords = model_input['coords']
+        ##COORDS.SHAPE = [1,1231,2]
         x, y = coords[:, :, 0], coords[:, :, 1]
         x = x[..., None]
         y = y[..., None]
+        ##X.SHAPE = [1,1231,1]
         x.requires_grad_(True)
         y.requires_grad_(True)
         o = self.net(torch.cat((x, y), dim=-1))
+        ## O.SHAPE = [1,1231,1]
         dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
         output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)
         return {'model_in': coords, 'model_out': output}

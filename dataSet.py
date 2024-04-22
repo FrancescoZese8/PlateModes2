@@ -64,6 +64,7 @@ class KirchhoffDataset(Dataset):
         x.requires_grad_(True)
         y.requires_grad_(True)
         xy = torch.cat([x, y], dim=-1)
+        ## XY.SHAPE = [1231,2]
         return {'coords': xy}
 
     def __len__(self):
@@ -79,7 +80,7 @@ class KirchhoffDataset(Dataset):
                 y_t.append(j)
 
         x_t = torch.tensor(x_t)
-        x_t = x_t[::4]
+        #x_t = x_t[::4]
         # print('x_t: ', x_t.shape)
         x_t = x_t.unsqueeze(1)
         x_in = torch.rand((self.batch_size_domain, 1)) * self.W
@@ -91,7 +92,7 @@ class KirchhoffDataset(Dataset):
         x = torch.cat([x_t, x_in, x_b1, x_b2, x_b3, x_b4], dim=0)
 
         y_t = torch.tensor(y_t)
-        y_t = y_t[::4]
+        #y_t = y_t[::4]
         # print('y_t: ', y_t.shape)
         y_t = y_t.unsqueeze(1)
         y_in = torch.rand((self.batch_size_domain, 1)) * self.H
@@ -103,30 +104,43 @@ class KirchhoffDataset(Dataset):
 
         x = x.to(self.device)  # CUDA
         y = y.to(self.device)
+        ## X.SHAPE = [1231,1]
 
         return x, y
 
     def compute_loss(self, x, y, preds, eval=False):
         # governing equation loss
-        preds = np.squeeze(preds, axis=0)
-        x = np.squeeze(x, axis=0)
-        y = np.squeeze(y, axis=0)
+        ## PREDS.SHAPE = [1,1231,6], X.SHAPE = [1,1231]
+        ## Il dataLoader aggiunge la prima dimensione = al batchsize
         t_len = len(self.known_disp)
-        # x_t = x[:t_len]
-        # y_t = y[:t_len]
-        u_t = np.squeeze(preds[:t_len, 0:1])
-        u = np.squeeze(preds[:, 0:1])
-        dudxx = np.squeeze(preds[:, 1:2])
-        dudyy = np.squeeze(preds[:, 2:3])
-        dudxxxx = np.squeeze(preds[:, 3:4])
-        dudyyyy = np.squeeze(preds[:, 4:5])
-        dudxxyy = np.squeeze(preds[:, 5:6])
+        #preds = np.squeeze(preds, axis=0)
+        #x = np.squeeze(x, axis=0)
+        #y = np.squeeze(y, axis=0)
+        #u_t = np.squeeze(preds[:t_len, 0:1])
+        #u = np.squeeze(preds[:, 0:1])
+        #dudxx = np.squeeze(preds[:, 1:2])
+        #dudyy = np.squeeze(preds[:, 2:3])
+        #dudxxxx = np.squeeze(preds[:, 3:4])
+        #dudyyyy = np.squeeze(preds[:, 4:5])
+        #dudxxyy = np.squeeze(preds[:, 5:6])
+        u_t = np.squeeze(preds[:, :t_len, 0:1])
+        u = np.squeeze(preds[:, :, 0:1])
+        #print('u: ', u.shape)
+        dudxx = np.squeeze(preds[:, :, 1:2])
+        dudyy = np.squeeze(preds[:, :, 2:3])
+        dudxxxx = np.squeeze(preds[:, :, 3:4])
+        dudyyyy = np.squeeze(preds[:, :, 4:5])
+        dudxxyy = np.squeeze(preds[:, :, 5:6])
+
+        #print('1: ', u[1, 190])
+        #print('2: ', u[2, 190])
+        #print('3: ', u[3, 190])
         err_t = self.known_disp - u_t
         f = dudxxxx + 2 * dudxxyy + dudyyyy - (
                 self.den * self.T * (self.omega ** 2)) / self.D * u
 
         L_f = f ** 2
-        #L_f = torch.zeros(1231)
+        #L_f = torch.zeros(1321)
         #L_f = L_f.to(self.device)
 
         L_t = err_t ** 2

@@ -12,8 +12,9 @@ print('device: ', device)
 
 
 num_epochs = 400
-n_step = 50
-batch_size = 10
+n_step = 10
+batch_size = 1
+total_length = 1
 lr = 0.001
 batch_size_domain = 800
 batch_size_boundary = 100
@@ -34,7 +35,7 @@ nue = 0.35
 p0 = 0.15
 den = 2700
 
-eigen_mode = 8
+eigen_mode = 10
 free_edges = True
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
@@ -56,10 +57,8 @@ known_disp = eigenFreq[label]
 known_disp = torch.tensor(known_disp)
 known_disp = known_disp.to(device)  # CUDA
 known_disp = known_disp * 1000
-known_disp = known_disp[::4]
+#known_disp = known_disp[::4]
 print('Known disp: ', known_disp.shape)
-#total_length = batch_size_domain + 4*batch_size_boundary + len(known_disp)
-total_length = 1
 
 
 plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, W=W, H=H, total_length=total_length, den=den,
