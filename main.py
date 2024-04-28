@@ -6,24 +6,34 @@ import loss
 import modules
 import training
 import matplotlib.pyplot as plt
-import pandas as pd
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
-print('device: ', device)
-
-
-dispFile = pd.read_csv('DisplacementFieldCSV.csv')  # Read CSV and create eigenFreq dictionary
-eigenFreq = {}
-for index, row in dispFile.iterrows():
-    if 'i' in str(row.iloc[0]):
-        continue
-    label = row.iloc[0]
-    data = row.iloc[1:]
-    eigenFreq[label] = data.to_dict()
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # TODO
+print(device)
 
 
-num_epochs = 400  # 500
-n_step = 100  # 50
+# 1%/2-2:
+# NMSE: 0.09404823830498811   loss: 0.00000090915
+# NMSE: 0.09810258528924976   loss: 0.00000099067
+# NMSE: 0.03157359262403152   loss: 1.311e-06
+# NMSE: 0.20815187205348357
+# NMSE: 0.08810789486876631
+# 5%/2-2
+# NMSE: 0.01767920614356985   loss: 0.00000106459
+# NMSE: 0.02979781419086590   loss: 1.662e-06
+# 10%/2-2
+# NMSE: 0.01886094824469468   loss: 0.00000110469
+# NMSE: 0.01374631926995931   loss: 0.00000117690
+# NMSE: 0.01381509773969310   loss: loss 1.414e-06
+# NMSE: 0.01838710502265463
+# 20%/2-2
+# NMSE:  0.0228620452786500   loss: 0.00000107551
+# NMSE:  0.0133779539549649   loss: 0.00000123034
+# NMSE:  0.0221876239077416   loss: 1.517e-06
+# NMSE:  0.0192541305761053
+
+
+num_epochs = 200
+n_step = 50
 batch_size = 32
 lr = 0.001
 batch_size_domain = 800
@@ -41,18 +51,17 @@ max_epochs_without_improvement = 100
 W = 10
 H = 10
 T = 0.2
-E = 0.7e5
-nue = 0.35
+E = 30000
+nue = 0.2
 p0 = 0.15
-den = 2700
+den = 1000
 
 n = 2
 m = 2
-percentage_of_known_points = 20  # %
+percentage_of_known_points = 10  # %
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
-# omega = ((n * np.pi / W) ** 2 + (m * np.pi / H) ** 2) * np.sqrt(D / (den * T)) #  FREE
-omega = 0.030270295746375724
+omega = ((n * np.pi / W) ** 2 + (m * np.pi / H) ** 2) * np.sqrt(D / (den * T))
 print('omega:', omega)
 nkp = percentage_of_known_points * batch_size_domain // 100
 known_points_x = torch.rand((nkp, 1)) * W
@@ -70,7 +79,7 @@ plate = dataSet.KirchhoffDataset(u_val=u_val, T=T, nue=nue, E=E, W=W, H=H, total
 # plate.visualise()
 data_loader = DataLoader(plate, shuffle=True, batch_size=batch_size, pin_memory=False, num_workers=0)
 model = modules.PINNet(out_features=1, type=opt_model, mode=mode)
-model = model.to(device)  # CUDA
+model.to(device)  # TODO
 
 history_loss = {'L_f': [], 'L_b0': [], 'L_b2': [], 'L_u': [], 'L_t': []}
 if not relo:
