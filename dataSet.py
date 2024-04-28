@@ -41,8 +41,8 @@ def compute_moments(D, nue, dudxx, dudyy):
 
 class KirchhoffDataset(Dataset):
 
-    def __init__(self, T, nue, E, H, W, total_length, den: float, omega: float, batch_size_domain,
-                 batch_size_boundary, known_disp, free_edges, device):
+    def __init__(self, T, nue, E, H, W, total_length, den: float, omega: float, batch_size_domain, known_disp,
+                 known_disp_map, x_t, y_t, free_edges, device):
         self.T = T
         self.nue = nue
         self.E = E
@@ -54,8 +54,10 @@ class KirchhoffDataset(Dataset):
         self.den = den
         self.omega = omega
         self.batch_size_domain = batch_size_domain
-        self.batch_size_boundary = batch_size_boundary
-        self.known_disp = known_disp
+        self.known_disp = known_disp.to(device)
+        self.known_disp_map = known_disp_map
+        self.x_t = torch.tensor(x_t)
+        self.y_t = torch.tensor(y_t)
         self.free_edges = free_edges
         self.device = device
 
@@ -70,41 +72,17 @@ class KirchhoffDataset(Dataset):
     def __len__(self):
         return self.total_length
 
-    def training_batch(self) -> Tuple[
-        torch.Tensor, torch.Tensor]:
+    def training_batch(self):
 
-        x_t, y_t = [], []
-        for i in range(self.W + 1):
-            for j in range(self.W + 1):
-                x_t.append(i)
-                y_t.append(j)
+        x_random = torch.randint(0, 100, (self.batch_size_domain,)) * 0.1 + 0.05
+        y_random = torch.randint(0, 100, (self.batch_size_domain,)) * 0.1 + 0.05
 
-        x_t = torch.tensor(x_t)
-        #x_t = x_t[::4]
-        # print('x_t: ', x_t.shape)
-        x_t = x_t.unsqueeze(1)
-        x_in = torch.rand((self.batch_size_domain, 1)) * self.W
-        x_b1 = torch.zeros((self.batch_size_boundary, 1))
-        x_b2 = torch.zeros((self.batch_size_boundary, 1)) + self.W
-        x_b3 = torch.rand((self.batch_size_boundary, 1)) * self.W
-        x_b4 = torch.rand((self.batch_size_boundary, 1)) * self.W
-
-        x = torch.cat([x_t, x_in, x_b1, x_b2, x_b3, x_b4], dim=0)
-
-        y_t = torch.tensor(y_t)
-        #y_t = y_t[::4]
-        # print('y_t: ', y_t.shape)
-        y_t = y_t.unsqueeze(1)
-        y_in = torch.rand((self.batch_size_domain, 1)) * self.H
-        y_b1 = torch.rand((self.batch_size_boundary, 1)) * self.H
-        y_b2 = torch.rand((self.batch_size_boundary, 1)) * self.H
-        y_b3 = torch.zeros((self.batch_size_boundary, 1))
-        y_b4 = torch.zeros((self.batch_size_boundary, 1)) + self.H
-        y = torch.cat([y_t, y_in, y_b1, y_b2, y_b3, y_b4], dim=0)
-
+        x = torch.cat((self.x_t, x_random), dim=0)
+        y = torch.cat((self.y_t, y_random), dim=0)
+        x = x[..., None]
+        y = y[..., None]
         x = x.to(self.device)  # CUDA
         y = y.to(self.device)
-        ## X.SHAPE = [1231,1]
 
         return x, y
 
@@ -112,35 +90,26 @@ class KirchhoffDataset(Dataset):
         # governing equation loss
         ## PREDS.SHAPE = [1,1231,6], X.SHAPE = [1,1231]
         ## Il dataLoader aggiunge la prima dimensione = al batchsize
-        t_len = len(self.known_disp)
-        #preds = np.squeeze(preds, axis=0)
-        #x = np.squeeze(x, axis=0)
-        #y = np.squeeze(y, axis=0)
-        #u_t = np.squeeze(preds[:t_len, 0:1])
-        #u = np.squeeze(preds[:, 0:1])
-        #dudxx = np.squeeze(preds[:, 1:2])
-        #dudyy = np.squeeze(preds[:, 2:3])
-        #dudxxxx = np.squeeze(preds[:, 3:4])
-        #dudyyyy = np.squeeze(preds[:, 4:5])
-        #dudxxyy = np.squeeze(preds[:, 5:6])
-        u_t = np.squeeze(preds[:, :t_len, 0:1])
-        u = np.squeeze(preds[:, :, 0:1])
-        #print('u: ', u.shape)
-        dudxx = np.squeeze(preds[:, :, 1:2])
-        dudyy = np.squeeze(preds[:, :, 2:3])
-        dudxxxx = np.squeeze(preds[:, :, 3:4])
-        dudyyyy = np.squeeze(preds[:, :, 4:5])
-        dudxxyy = np.squeeze(preds[:, :, 5:6])
+        u = np.squeeze(preds[:, len(self.x_t):, 0:1])
+        u_t = np.squeeze(preds[:, :len(self.x_t), 0:1])
+        x = np.squeeze(x)
+        y = np.squeeze(y)
+        dudxx = np.squeeze(preds[:, len(self.x_t):, 1:2])
+        dudyy = np.squeeze(preds[:, len(self.x_t):, 2:3])
+        dudxxxx = np.squeeze(preds[:, len(self.x_t):, 3:4])
+        dudyyyy = np.squeeze(preds[:, len(self.x_t):, 4:5])
+        dudxxyy = np.squeeze(preds[:, len(self.x_t):, 5:6])
 
-        #print('1: ', u[1, 190])
-        #print('2: ', u[2, 190])
-        #print('3: ', u[3, 190])
+        #known_disps = [self.known_disp_map.get((round(i, 2), round(j, 2)), u[index]) for index, (i, j) in
+                       #enumerate(zip(x.tolist(), y.tolist()))]
+        #print('k: ', len(known_disps_filtered))
+        #print('u: ', len(u_cleaned))
         err_t = self.known_disp - u_t
         f = dudxxxx + 2 * dudxxyy + dudyyyy - (
                 self.den * self.T * (self.omega ** 2)) / self.D * u
 
         L_f = f ** 2
-        #L_f = torch.zeros(1321)
+        #L_f = torch.zeros(1)
         #L_f = L_f.to(self.device)
 
         L_t = err_t ** 2
@@ -168,7 +137,7 @@ class KirchhoffDataset(Dataset):
             L_b2 = torch.mul((x_lower + x_upper), mx) ** 2 + torch.mul((y_lower + y_upper), my) ** 2
 
             if eval:
-                L_u = torch.zeros(self.batch_size_domain + 4 * self.batch_size_boundary + t_len)  # TODO
+                L_u = torch.zeros(self.batch_size_domain + 4 * self.batch_size_boundary)  # TODO
 
                 return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_u': L_u, 'L_t': L_t}
             return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_t': L_t}
@@ -181,7 +150,7 @@ class KirchhoffDataset(Dataset):
         x = torch.tensor(x.reshape(image_width * image_height, 1), dtype=torch.float32)
         y = torch.tensor(y.reshape(image_width * image_height, 1), dtype=torch.float32)
         x = x.unsqueeze(1)
-        y = y.unsqueeze(1)  # TODO
+        y = y.unsqueeze(1)
         x = x.to(self.device)  # CUDA
         y = y.to(self.device)
         c = {'coords': torch.cat([x, y], dim=-1).float()}
@@ -242,5 +211,5 @@ class KirchhoffDataset(Dataset):
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
         ax.set_title(title)
-        #ax.invert_xaxis()
+        # ax.invert_xaxis()
         plt.show()

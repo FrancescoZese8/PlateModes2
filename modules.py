@@ -18,12 +18,12 @@ class BatchLinear(nn.Linear, MetaModule):
             params = OrderedDict(self.named_parameters())
 
         bias = params.get('bias', None)
-        #print('bias: ', bias.shape)
+        # print('bias: ', bias.shape)
         weight = params['weight']
-        #print('weight: ', weight.shape)
-        #print('input: ', input_net.shape)
+        # print('weight: ', weight.shape)
+        # print('input: ', input_net.shape)
         output = input_net.matmul(weight.permute(*[i for i in range(len(weight.shape) - 2)], -1, -2))
-        #print('output: ', output.shape)
+        # print('output: ', output.shape)
         output += bias.unsqueeze(-2)
         return output
 
@@ -35,7 +35,6 @@ class Sine(nn.Module):
     def forward(self, input):
         # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of factor 30
         return torch.sin(30 * input)
-
 
 
 class FCBlock(MetaModule):
@@ -124,10 +123,11 @@ class FCBlock(MetaModule):
 class PINNet(nn.Module):
     '''Architecture used by Raissi et al. 2019.'''
 
-    def __init__(self, out_features=1, type='tanh', in_features=2, mode='mlp'):
+    def __init__(self, known_disp_map, initial_conditions=True, out_features=1, type='tanh', in_features=2, mode='mlp'):
         super().__init__()
         self.mode = mode
-
+        self.known_disp_map = known_disp_map
+        self.initial_conditions = initial_conditions
         self.net = FCBlock(in_features=in_features, out_features=out_features, num_hidden_layers=2,
                            hidden_features=64, outermost_linear=True, nonlinearity=type,
                            weight_init=None)
@@ -143,11 +143,28 @@ class PINNet(nn.Module):
         ##X.SHAPE = [1,1231,1]
         x.requires_grad_(True)
         y.requires_grad_(True)
-        o = self.net(torch.cat((x, y), dim=-1))
+        if self.initial_conditions:  # TODO
+            o = self.net(torch.cat((x, y), dim=-1))
+            x = np.squeeze(x)
+            y = np.squeeze(y)
+            known_disps = [self.known_disp_map[(round(i, 2), round(j, 2))] for (i, j) in zip(x.tolist(), y.tolist())]
+            #o = torch.tensor(o, dtype=torch.float32)
+            #o.requires_grad_(True)
+            known_disps = torch.tensor(known_disps)
+            o.retain_grad()
+            o.data = known_disps
+            #o.retain_grad()
+            o = o[None, ..., None]
+            x = x[None, ..., None]
+            y = y[None, ..., None]
+            self.initial_conditions = False
+        else:
+            o = self.net(torch.cat((x, y), dim=-1))
         ## O.SHAPE = [1,1231,1]
         dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
         output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)
         return {'model_in': coords, 'model_out': output}
+
 
 ########################
 # Initialization methods

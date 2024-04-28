@@ -17,7 +17,7 @@ class KirchhoffLoss(torch.nn.Module):
         self.plate = plate
 
     def call(self, preds, xy):
-        xy = xy['model_coords']
+        xy = xy['coords']
         x, y = xy[:, :, 0], xy[:, :, 1]
         preds = preds['model_out']
         return self.plate.compute_loss(x, y, preds)
