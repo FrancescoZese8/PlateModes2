@@ -31,8 +31,15 @@ print(device)
 # NMSE:  0.0221876239077416   loss: 1.517e-06
 # NMSE:  0.0192541305761053
 
+# NMSE w governing, 10%: 0.027880673820615397
+# NMSE w governing, 5%: 0.02979781419086590
+# NMSE: w governing, 1%:  0.10646154960916877
 
-num_epochs = 200
+# NMSE: w no, 5%: 0.1675748128086607
+# NMSE: w no, 1%: 0.4481461364667781
+
+
+num_epochs = 300
 n_step = 50
 batch_size = 32
 lr = 0.001
@@ -66,6 +73,9 @@ print('omega:', omega)
 nkp = percentage_of_known_points * batch_size_domain // 100
 known_points_x = torch.rand((nkp, 1)) * W
 known_points_y = torch.rand((nkp, 1)) * H
+print('x: ', known_points_x)
+print('y: ', known_points_y)
+
 
 
 def u_val(x, y):
