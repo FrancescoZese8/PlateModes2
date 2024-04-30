@@ -40,19 +40,21 @@ free_edges = True
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 
-df = pd.read_csv('FieldOfDisplacement.csv', sep=';')
+df = pd.read_csv('FieldOfDisplacement1024.csv', sep=';')
 df_numeric = df.apply(pd.to_numeric, errors='coerce')
 
-x_p, y_p = [], []
-for i in range(100):
-    for j in range(100):
-        x_p.append(round(j * 0.1 + 0.05, 2))
-        y_p.append(round(i * 0.1 + 0.05, 2))
+#x_p, y_p = [], []
+#for i in range(100):
+#    for j in range(100):
+#        x_p.append(round(j * 0.1 + 0.05, 2))
+#        y_p.append(round(i * 0.1 + 0.05, 2))
 
-ds = 128
+ds = 27
+known_disp = torch.tensor(df_numeric.iloc[:, 2:].values)
+x_p = df_numeric.iloc[:, 0].values
+y_p = df_numeric.iloc[:, 1].values
 x_t = x_p[::ds]
 y_t = y_p[::ds]
-known_disp = torch.tensor(df_numeric.iloc[:, 2:].values)
 known_disp = known_disp[:, eigen_mode]
 full_known_disp = known_disp
 known_disp = known_disp[::ds]
@@ -63,18 +65,17 @@ known_disp = -1 + 2 * (known_disp - min_val) / (max_val - min_val)
 #known_disp = known_disp.to(device)  # CUDA
 known_disp_map = dict(zip(zip(x_t, y_t), known_disp))
 
-plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, W=W, H=H, total_length=total_length, den=den,
-                                 omega=omega, batch_size_domain=batch_size_domain, known_disp=known_disp,
-                                 known_disp_map=known_disp_map, x_t=x_t, y_t=y_t,
-                                 free_edges=free_edges, device=device)
+
 # plate.visualise()
 
-known_disps = [known_disp_map.get((round(i, 2), round(j, 2)), 0) for index, (i, j) in
+known_disps = [known_disp_map.get((i, j), 0) for index, (i, j) in
                enumerate(zip(x_p, y_p))]
-kdp = np.reshape(known_disps, (100, 100)).astype(float)
-fkdp = np.reshape(full_known_disp, (100, 100))
-X, Y = np.meshgrid(np.arange(0.05, 10.05, 0.1), np.arange(0.05, 10.05, 0.1))
-
+num_coords = int(np.sqrt(len(known_disps)))
+kdp = np.reshape(known_disps, (num_coords, num_coords)).astype(float)
+fkdp = np.reshape(full_known_disp, (num_coords, num_coords))
+X = np.reshape(x_p, (num_coords, num_coords))
+#print('X: ', len(X[1, :]))
+Y = np.reshape(y_p, (num_coords, num_coords))
 fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 10))
 
 ax3d = fig.add_subplot(221, projection='3d')
@@ -104,6 +105,12 @@ ax2d.set_title('Known Points: {}'.format(len(known_disp)))
 plt.tight_layout()
 plt.show()
 
+coords = X[1, :]
+
+plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, W=W, H=H, total_length=total_length, den=den,
+                                 omega=omega, batch_size_domain=batch_size_domain, known_disp=known_disp,
+                                 known_disp_map=known_disp_map, x_t=x_t, y_t=y_t, coords=coords,
+                                 free_edges=free_edges, device=device)
 
 data_loader = DataLoader(plate, shuffle=True, batch_size=batch_size, pin_memory=False, num_workers=0)
 model = modules.PINNet(known_disp_map, initial_conditions=False, out_features=1, type=opt_model, mode=mode)

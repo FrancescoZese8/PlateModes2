@@ -42,7 +42,7 @@ def compute_moments(D, nue, dudxx, dudyy):
 class KirchhoffDataset(Dataset):
 
     def __init__(self, T, nue, E, H, W, total_length, den: float, omega: float, batch_size_domain, known_disp,
-                 known_disp_map, x_t, y_t, free_edges, device):
+                 known_disp_map, x_t, y_t, coords, free_edges, device):
         self.T = T
         self.nue = nue
         self.E = E
@@ -56,8 +56,9 @@ class KirchhoffDataset(Dataset):
         self.batch_size_domain = batch_size_domain
         self.known_disp = known_disp.to(device)
         self.known_disp_map = known_disp_map
-        self.x_t = torch.tensor(x_t)
-        self.y_t = torch.tensor(y_t)
+        self.x_t = torch.tensor(x_t, dtype=torch.float)
+        self.y_t = torch.tensor(y_t, dtype=torch.float)
+        self.coords = coords
         self.free_edges = free_edges
         self.device = device
 
@@ -74,10 +75,19 @@ class KirchhoffDataset(Dataset):
 
     def training_batch(self):
 
-        x_random = torch.randint(0, 100, (self.batch_size_domain,)) * 0.1 + 0.05
-        y_random = torch.randint(0, 100, (self.batch_size_domain,)) * 0.1 + 0.05
-        #x_random = torch.randint(0, 25, (self.batch_size_domain,)) * 0.4 + 0.05
-        #y_random = torch.randint(0, 25, (self.batch_size_domain,)) * 0.4 + 0.05
+        #x_random = torch.rand((self.batch_size_domain,)) * self.W
+        #y_random = torch.rand((self.batch_size_domain,)) * self.H
+        y_random = []
+        x_random = []
+
+        for i in range(self.batch_size_domain):
+            index_x = torch.randint(0, len(self.coords), (1,)).item()
+            index_y = torch.randint(0, len(self.coords), (1,)).item()
+            x_random.append(self.coords[index_x])
+            y_random.append(self.coords[index_y])
+
+        x_random = torch.tensor(x_random, dtype=torch.float)
+        y_random = torch.tensor(y_random, dtype=torch.float)
 
         x = torch.cat((self.x_t, x_random), dim=0)
         y = torch.cat((self.y_t, y_random), dim=0)
