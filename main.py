@@ -11,8 +11,8 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 200
-n_step = 10
+num_epochs = 200    # 150 ep, 50 step, em 23, ds 256, temperature=0.00001, rho=0.99, alpha=0.9
+n_step = 50
 batch_size = 1
 total_length = 1
 lr = 0.001
@@ -23,7 +23,7 @@ opt_model = 'silu'
 mode = 'pinn'
 clip_grad = 1.0
 use_lbfgs = False
-relo = False
+relo = True
 max_epochs_without_improvement = 50
 
 W = 10
@@ -34,8 +34,8 @@ nue = 0.35
 p0 = 0.15
 den = 2700
 
-eigen_mode = 8  # 8: 0.012216 / 11: 0.03027 / 13: 0.030792 / 18: 0.057536 / 23: 0.078311 / 32: 0.13573 / 36: 0.14482 / 39: 0.14971
-omega = 0.00043216
+eigen_mode = 23  # 8: 0.012216 / 11: 0.03027 / 13: 0.030792 / 18: 0.057536 / 23: 0.078311 / 32: 0.13573 / 36: 0.14482 / 39: 0.14971
+omega = 0.078311
 free_edges = True
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
@@ -49,7 +49,7 @@ for i in range(100):
         x_p.append(round(j * 0.1 + 0.05, 2))
         y_p.append(round(i * 0.1 + 0.05, 2))
 
-ds = 256
+ds = 128
 x_t = x_p[::ds]
 y_t = y_p[::ds]
 known_disp = torch.tensor(df_numeric.iloc[:, 2:].values)
@@ -75,21 +75,27 @@ kdp = np.reshape(known_disps, (100, 100)).astype(float)
 fkdp = np.reshape(full_known_disp, (100, 100))
 X, Y = np.meshgrid(np.arange(0.05, 10.05, 0.1), np.arange(0.05, 10.05, 0.1))
 
-fig = plt.figure(figsize=(10, 5))
+fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 10))
 
-ax3d = fig.add_subplot(131, projection='3d')
+ax3d = fig.add_subplot(221, projection='3d')
 surf1 = ax3d.plot_surface(X, Y, fkdp, cmap='viridis')
 ax3d.set_xlabel('X')
 ax3d.set_ylabel('Y')
 ax3d.set_title('Real Displacement mode: {}'.format(eigen_mode))
 
-ax3d = fig.add_subplot(132, projection='3d')
+ax2d = fig.add_subplot(222)
+im = ax2d.imshow(fkdp, extent=(0, 10, 0, 10), origin='lower', cmap='viridis')
+ax2d.set_xlabel('X')
+ax2d.set_ylabel('Y')
+ax2d.set_title('Real Displacement mode: {}'.format(eigen_mode))
+
+ax3d = fig.add_subplot(223, projection='3d')
 surf2 = ax3d.plot_surface(X, Y, kdp, cmap='viridis')
 ax3d.set_xlabel('X')
 ax3d.set_ylabel('Y')
 ax3d.set_title('Known Points: {}'.format(len(known_disp)))
 
-ax2d = fig.add_subplot(133)
+ax2d = fig.add_subplot(224)
 im = ax2d.imshow(kdp, extent=(0, 10, 0, 10), origin='lower')
 ax2d.set_xlabel('X')
 ax2d.set_ylabel('Y')
@@ -110,7 +116,7 @@ if not relo:
     history_lambda = None
     metric_lam = None
 else:
-    loss_fn = loss.ReLoBRaLoKirchhoffLoss(plate, temperature=0.1, rho=0.99, alpha=0.999)
+    loss_fn = loss.ReLoBRaLoKirchhoffLoss(plate, temperature=10e-05, rho=0.99, alpha=0.9)
     kirchhoff_metric = loss.KirchhoffMetric(plate, free_edges=free_edges)
     history_lambda = {'L_f_lambda': [], 'L_b0_lambda': [], 'L_b2_lambda': [], 'L_t_lambda': []}
     metric_lam = loss.ReLoBRaLoLambdaMetric(loss_fn, free_edges=free_edges)

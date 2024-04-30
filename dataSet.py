@@ -76,6 +76,8 @@ class KirchhoffDataset(Dataset):
 
         x_random = torch.randint(0, 100, (self.batch_size_domain,)) * 0.1 + 0.05
         y_random = torch.randint(0, 100, (self.batch_size_domain,)) * 0.1 + 0.05
+        #x_random = torch.randint(0, 25, (self.batch_size_domain,)) * 0.4 + 0.05
+        #y_random = torch.randint(0, 25, (self.batch_size_domain,)) * 0.4 + 0.05
 
         x = torch.cat((self.x_t, x_random), dim=0)
         y = torch.cat((self.y_t, y_random), dim=0)
@@ -109,8 +111,6 @@ class KirchhoffDataset(Dataset):
                 self.den * self.T * (self.omega ** 2)) / self.D * u
 
         L_f = f ** 2
-        #L_f = torch.zeros(1)
-        #L_f = L_f.to(self.device)
 
         L_t = err_t ** 2
 
@@ -188,7 +188,7 @@ class KirchhoffDataset(Dataset):
     def __show_image(self, img, axis=None, title='', x_label='x [m]', y_label='y [m]', z_label=''):
         if axis is None:
             _, axis = plt.subplots(1, 1, figsize=(4, 3.2), dpi=100)
-        im = axis.imshow(np.rot90(img, k=3), cmap='plasma', origin='lower', aspect='auto')
+        im = axis.imshow(np.rot90(img, k=3), origin='lower', aspect='auto', cmap='viridis')
         cb = plt.colorbar(im, label=z_label, ax=axis)
         axis.set_xticks([0, img.shape[0] - 1])
         axis.set_xticklabels([0, self.W])
