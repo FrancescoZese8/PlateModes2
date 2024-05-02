@@ -33,9 +33,9 @@ class ReLoBRaLoKirchhoffLoss(KirchhoffLoss):
         self.rho = rho
         self.call_count = CustomVariable(0., trainable=False, dtype=torch.float32)
 
-        self.lambdas = [CustomVariable(1., trainable=False) for _ in range(plate.num_terms)]
-        self.last_losses = [CustomVariable(1., trainable=False) for _ in range(plate.num_terms)]
-        self.init_losses = [CustomVariable(1., trainable=False) for _ in range(plate.num_terms)]
+        self.lambdas = [CustomVariable(1., trainable=False) for _ in range(plate.num_loss)]
+        self.last_losses = [CustomVariable(1., trainable=False) for _ in range(plate.num_loss)]
+        self.init_losses = [CustomVariable(1., trainable=False) for _ in range(plate.num_loss)]
 
     def call(self, preds, xy):
         xy = xy['coords']

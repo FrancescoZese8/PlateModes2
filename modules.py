@@ -123,13 +123,15 @@ class FCBlock(MetaModule):
 class PINNet(nn.Module):
     '''Architecture used by Raissi et al. 2019.'''
 
-    def __init__(self, known_disp_map, initial_conditions=True, out_features=1, type='tanh', in_features=2, mode='mlp'):
+    def __init__(self, known_disp_map, num_hidden_layers, hidden_features, initial_conditions=True, out_features=1, type='tanh', in_features=2, mode='mlp'):
         super().__init__()
         self.mode = mode
         self.known_disp_map = known_disp_map
+        self.num_hidden_layers = num_hidden_layers
+        self.hidden_features = hidden_features
         self.initial_conditions = initial_conditions
-        self.net = FCBlock(in_features=in_features, out_features=out_features, num_hidden_layers=2,
-                           hidden_features=64, outermost_linear=True, nonlinearity=type,
+        self.net = FCBlock(in_features=in_features, out_features=out_features, num_hidden_layers=num_hidden_layers,
+                           hidden_features=hidden_features, outermost_linear=True, nonlinearity=type,
                            weight_init=None)
         print(self)
 

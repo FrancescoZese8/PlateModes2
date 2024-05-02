@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-from typing import Tuple
 from torch.utils.data import Dataset
 import matplotlib.pyplot as plt
 
@@ -41,33 +40,33 @@ def compute_moments(D, nue, dudxx, dudyy):
 
 class KirchhoffDataset(Dataset):
 
-    def __init__(self, T, nue, E, H, W, total_length, den: float, omega: float, batch_size_domain, known_disp,
-                 known_disp_map, x_t, y_t, coords, free_edges, device):
+    def __init__(self, T, nue, E, D, H, W, total_length, den: float, omega: float, batch_size_domain, known_disp,
+                 full_known_disp, x_t, y_t, x_p, y_p, free_edges, device):
         self.T = T
         self.nue = nue
         self.E = E
-        self.D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffness of the plate
+        self.D = D
         self.H = H
         self.W = W
-        self.num_terms = 4
         self.total_length = total_length
         self.den = den
         self.omega = omega
         self.batch_size_domain = batch_size_domain
         self.known_disp = known_disp.to(device)
-        self.known_disp_map = known_disp_map
+        self.full_known_disp = full_known_disp
         self.x_t = torch.tensor(x_t, dtype=torch.float)
         self.y_t = torch.tensor(y_t, dtype=torch.float)
-        self.coords = coords
+        self.x_p = torch.tensor(x_p, dtype=torch.float)
+        self.y_p = torch.tensor(y_p, dtype=torch.float)
         self.free_edges = free_edges
         self.device = device
+        self.num_loss = 2
 
     def __getitem__(self, item):
         x, y = self.training_batch()
         x.requires_grad_(True)
         y.requires_grad_(True)
         xy = torch.cat([x, y], dim=-1)
-        ## XY.SHAPE = [1231,2]
         return {'coords': xy}
 
     def __len__(self):
@@ -75,19 +74,8 @@ class KirchhoffDataset(Dataset):
 
     def training_batch(self):
 
-        #x_random = torch.rand((self.batch_size_domain,)) * self.W
-        #y_random = torch.rand((self.batch_size_domain,)) * self.H
-        y_random = []
-        x_random = []
-
-        for i in range(self.batch_size_domain):
-            index_x = torch.randint(0, len(self.coords), (1,)).item()
-            index_y = torch.randint(0, len(self.coords), (1,)).item()
-            x_random.append(self.coords[index_x])
-            y_random.append(self.coords[index_y])
-
-        x_random = torch.tensor(x_random, dtype=torch.float)
-        y_random = torch.tensor(y_random, dtype=torch.float)
+        x_random = torch.rand((self.batch_size_domain,)) * self.W
+        y_random = torch.rand((self.batch_size_domain,)) * self.H
 
         x = torch.cat((self.x_t, x_random), dim=0)
         y = torch.cat((self.y_t, y_random), dim=0)
@@ -112,10 +100,10 @@ class KirchhoffDataset(Dataset):
         dudyyyy = np.squeeze(preds[:, len(self.x_t):, 4:5])
         dudxxyy = np.squeeze(preds[:, len(self.x_t):, 5:6])
 
-        #known_disps = [self.known_disp_map.get((round(i, 2), round(j, 2)), u[index]) for index, (i, j) in
-                       #enumerate(zip(x.tolist(), y.tolist()))]
-        #print('k: ', len(known_disps_filtered))
-        #print('u: ', len(u_cleaned))
+        # known_disps = [self.known_disp_map.get((round(i, 2), round(j, 2)), u[index]) for index, (i, j) in
+        # enumerate(zip(x.tolist(), y.tolist()))]
+        # print('k: ', len(known_disps_filtered))
+        # print('u: ', len(u_cleaned))
         err_t = self.known_disp - u_t
         f = dudxxxx + 2 * dudxxyy + dudyyyy - (
                 self.den * self.T * (self.omega ** 2)) / self.D * u
@@ -156,13 +144,17 @@ class KirchhoffDataset(Dataset):
 
     def __validation_results(self, pinn, image_width=64, image_height=64):
         # x, y, u_real = self.validation_batch(image_width, image_height)
-        x, y = np.mgrid[0:self.W:complex(0, image_width), 0:self.H:complex(0, image_height)]
-        x = torch.tensor(x.reshape(image_width * image_height, 1), dtype=torch.float32)
-        y = torch.tensor(y.reshape(image_width * image_height, 1), dtype=torch.float32)
-        x = x.unsqueeze(1)
-        y = y.unsqueeze(1)
-        x = x.to(self.device)  # CUDA
-        y = y.to(self.device)
+        self.x_p = self.x_p[..., None, None]
+        self.y_p = self.y_p[..., None, None]
+        x = self.x_p.to(self.device)  # CUDA
+        y = self.y_p.to(self.device)
+        # x, y = np.mgrid[0:self.W:complex(0, image_width), 0:self.H:complex(0, image_height)]
+        # x = torch.tensor(x.reshape(image_width * image_height, 1), dtype=torch.float32)
+        # y = torch.tensor(y.reshape(image_width * image_height, 1), dtype=torch.float32)
+        # x = x.unsqueeze(1)
+        # y = y.unsqueeze(1)
+        # x = x.to(self.device)  # CUDA
+        # y = y.to(self.device)
         c = {'coords': torch.cat([x, y], dim=-1).float()}
         pred = pinn(c)['model_out']
         u_pred, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = (
@@ -172,54 +164,35 @@ class KirchhoffDataset(Dataset):
         f = dudxxxx + 2 * dudxxyy + dudyyyy
         return u_pred, mx, my, f
 
-    def visualise(self, pinn=None, image_width=64, image_height=64):
+    def visualise(self, pinn=None, image_width=100, image_height=100):  # QUI
 
         u_pred, mx, my, f = self.__validation_results(pinn, image_width, image_height)
-        # u_real = u_real.cpu().detach().numpy().reshape(image_width, image_height)  # CUDA
+        u_real = self.full_known_disp.numpy().reshape(image_width, image_height)
         u_pred = u_pred.cpu().detach().numpy().reshape(image_width, image_height)  # CUDA
+        NMSE = (np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2)
 
-        # self.__plot_3d(u_real, 'Real Displacement (m)')
+        X, Y = np.meshgrid(np.arange(0.05, 10.05, 0.1), np.arange(0.05, 10.05, 0.1))
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot_surface(X, Y, u_pred, cmap='inferno')
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        ax.set_title('Predicted Displacement')
 
-        # Plot 3D for u_pred
-        self.__plot_3d(u_pred, 'Predicted Displacement (m)')
+        fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
 
-        fig, axs = plt.subplots(1, 2, figsize=(8, 3.2))
-        self.__show_image(u_pred, axs[0], 'Predicted Displacement (m)')
-        # self.__show_image((u_pred - u_real) ** 2, axs[1], 'Squared Error Displacement')
-        ##NMSE = (np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2)
-        ##print('NMSE: ', NMSE)
+        axes[0].imshow(u_pred, extent=(0, 10, 0, 10), origin='lower', cmap='viridis')
+        axes[0].set_xlabel('X')
+        axes[0].set_ylabel('Y')
+        axes[0].set_title('Predicted Displacement')
 
-        for ax in axs.flat:
-            ax.label_outer()
+        axes[1].imshow((u_pred - u_real) ** 2, extent=(0, 10, 0, 10), origin='lower', cmap='viridis')
+        axes[1].set_xlabel('X')
+        axes[1].set_ylabel('Y')
+        axes[1].set_title('Squared Error Displacement: {}'.format(NMSE))
 
         plt.tight_layout()
         plt.show()
 
-    def __show_image(self, img, axis=None, title='', x_label='x [m]', y_label='y [m]', z_label=''):
-        if axis is None:
-            _, axis = plt.subplots(1, 1, figsize=(4, 3.2), dpi=100)
-        im = axis.imshow(np.rot90(img, k=3), origin='lower', aspect='auto', cmap='viridis')
-        cb = plt.colorbar(im, label=z_label, ax=axis)
-        axis.set_xticks([0, img.shape[0] - 1])
-        axis.set_xticklabels([0, self.W])
-        axis.set_yticks([0, img.shape[1] - 1])
-        axis.set_yticklabels([0, self.H])
-        axis.set_xlabel(x_label)
-        axis.set_ylabel(y_label)
-        axis.set_title(title)
-        return im
-
-    def __plot_3d(self, data, title=''):
-
-        X, Y = np.mgrid[0:self.W:complex(0, 64), 0:self.H:complex(0, 64)]
-        Z = data
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.plot_surface(X, Y, Z, cmap='viridis')
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
-        ax.set_title(title)
-        # ax.invert_xaxis()
-        plt.show()
+        return NMSE
