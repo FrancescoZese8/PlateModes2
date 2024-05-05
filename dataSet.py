@@ -1,8 +1,6 @@
 import torch
 import numpy as np
 from torch.utils.data import Dataset
-import matplotlib.pyplot as plt
-
 EPS = 1e-6
 
 
@@ -41,7 +39,7 @@ def compute_moments(D, nue, dudxx, dudyy):
 class KirchhoffDataset(Dataset):
 
     def __init__(self, T, nue, E, D, H, W, total_length, den: float, omega: float, batch_size_domain, known_disp,
-                 full_known_disp, x_t, y_t, x_p, y_p, free_edges, device):
+                 full_known_disp, known_disp_map, x_t, y_t, x_p, y_p, free_edges, device):
         self.T = T
         self.nue = nue
         self.E = E
@@ -54,10 +52,9 @@ class KirchhoffDataset(Dataset):
         self.batch_size_domain = batch_size_domain
         self.known_disp = known_disp.to(device)
         self.full_known_disp = full_known_disp
+        self.known_disp_map = known_disp_map
         self.x_t = torch.tensor(x_t, dtype=torch.float)
         self.y_t = torch.tensor(y_t, dtype=torch.float)
-        self.x_p = torch.tensor(x_p, dtype=torch.float)
-        self.y_p = torch.tensor(y_p, dtype=torch.float)
         self.free_edges = free_edges
         self.device = device
         self.num_loss = 2
@@ -74,13 +71,18 @@ class KirchhoffDataset(Dataset):
 
     def training_batch(self):
 
-        x_random = torch.rand((self.batch_size_domain,)) * self.W
-        y_random = torch.rand((self.batch_size_domain,)) * self.H
+        x_p, y_p = np.arange(0.05, 10.05, 0.1), np.arange(0.05, 10.05, 0.1)
+        x_index = np.random.randint(0, 100, size=self.batch_size_domain)
+        y_index = np.random.randint(0, 100, size=self.batch_size_domain)
+        x_random = torch.tensor(x_p[x_index], dtype=torch.float)
+        y_random = torch.tensor(y_p[y_index], dtype=torch.float)
 
         x = torch.cat((self.x_t, x_random), dim=0)
         y = torch.cat((self.y_t, y_random), dim=0)
         x = x[..., None]
         y = y[..., None]
+        #x = torch.randint(0, 100, (self.batch_size_domain,)) * 0.1 + 0.05
+        #y = torch.randint(0, 100, (self.batch_size_domain,)) * 0.1 + 0.05
         x = x.to(self.device)  # CUDA
         y = y.to(self.device)
 
@@ -88,27 +90,31 @@ class KirchhoffDataset(Dataset):
 
     def compute_loss(self, x, y, preds, eval=False):
         # governing equation loss
-        ## PREDS.SHAPE = [1,1231,6], X.SHAPE = [1,1231]
-        ## Il dataLoader aggiunge la prima dimensione = al batchsize
-        u = np.squeeze(preds[:, len(self.x_t):, 0:1])
+        #u = np.squeeze(preds[:, len(self.x_t):, 0:1])
         u_t = np.squeeze(preds[:, :len(self.x_t), 0:1])
         x = np.squeeze(x)
         y = np.squeeze(y)
-        dudxx = np.squeeze(preds[:, len(self.x_t):, 1:2])
-        dudyy = np.squeeze(preds[:, len(self.x_t):, 2:3])
-        dudxxxx = np.squeeze(preds[:, len(self.x_t):, 3:4])
-        dudyyyy = np.squeeze(preds[:, len(self.x_t):, 4:5])
-        dudxxyy = np.squeeze(preds[:, len(self.x_t):, 5:6])
+        #dudxx = np.squeeze(preds[:, len(self.x_t):, 1:2])
+        #dudyy = np.squeeze(preds[:, len(self.x_t):, 2:3])
+        #dudxxxx = np.squeeze(preds[:, len(self.x_t):, 3:4])
+        #dudyyyy = np.squeeze(preds[:, len(self.x_t):, 4:5])
+        #dudxxyy = np.squeeze(preds[:, len(self.x_t):, 5:6])
+        u = np.squeeze(preds[:, :, 0:1])
+        dudxx = np.squeeze(preds[:, :, 1:2])
+        dudyy = np.squeeze(preds[:, :, 2:3])
+        dudxxxx = np.squeeze(preds[:, :, 3:4])
+        dudyyyy = np.squeeze(preds[:, :, 4:5])
+        dudxxyy = np.squeeze(preds[:, :, 5:6])
 
-        # known_disps = [self.known_disp_map.get((round(i, 2), round(j, 2)), u[index]) for index, (i, j) in
-        # enumerate(zip(x.tolist(), y.tolist()))]
-        # print('k: ', len(known_disps_filtered))
-        # print('u: ', len(u_cleaned))
         err_t = self.known_disp - u_t
+        #known_disps = [self.known_disp_map.get((round(i, 2), round(j, 2)), u[index]) for index, (i, j) in
+                       #enumerate(zip(x.tolist(), y.tolist()))]
+        #known_disps = torch.tensor(known_disps).to(self.device)
+        #err_t = known_disps - u
         f = dudxxxx + 2 * dudxxyy + dudyyyy - (
                 self.den * self.T * (self.omega ** 2)) / self.D * u
 
-        L_f = f ** 2
+        L_f = f ** 2 * 0
 
         L_t = err_t ** 2
 
@@ -141,58 +147,3 @@ class KirchhoffDataset(Dataset):
             return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_t': L_t}
         else:
             return {'L_f': L_f, 'L_t': L_t}
-
-    def __validation_results(self, pinn, image_width=64, image_height=64):
-        # x, y, u_real = self.validation_batch(image_width, image_height)
-        self.x_p = self.x_p[..., None, None]
-        self.y_p = self.y_p[..., None, None]
-        x = self.x_p.to(self.device)  # CUDA
-        y = self.y_p.to(self.device)
-        # x, y = np.mgrid[0:self.W:complex(0, image_width), 0:self.H:complex(0, image_height)]
-        # x = torch.tensor(x.reshape(image_width * image_height, 1), dtype=torch.float32)
-        # y = torch.tensor(y.reshape(image_width * image_height, 1), dtype=torch.float32)
-        # x = x.unsqueeze(1)
-        # y = y.unsqueeze(1)
-        # x = x.to(self.device)  # CUDA
-        # y = y.to(self.device)
-        c = {'coords': torch.cat([x, y], dim=-1).float()}
-        pred = pinn(c)['model_out']
-        u_pred, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = (
-            pred[:, :, 0:1], pred[:, :, 1:2], pred[:, :, 2:3], pred[:, :, 3:4], pred[:, :, 4:5], pred[:, :, 5:6]
-        )
-        mx, my = compute_moments(self.D, self.nue, dudxx, dudyy)
-        f = dudxxxx + 2 * dudxxyy + dudyyyy
-        return u_pred, mx, my, f
-
-    def visualise(self, pinn=None, image_width=100, image_height=100):  # QUI
-
-        u_pred, mx, my, f = self.__validation_results(pinn, image_width, image_height)
-        u_real = self.full_known_disp.numpy().reshape(image_width, image_height)
-        u_pred = u_pred.cpu().detach().numpy().reshape(image_width, image_height)  # CUDA
-        NMSE = (np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2)
-
-        X, Y = np.meshgrid(np.arange(0.05, 10.05, 0.1), np.arange(0.05, 10.05, 0.1))
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.plot_surface(X, Y, u_pred, cmap='inferno')
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
-        ax.set_title('Predicted Displacement')
-
-        fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
-
-        axes[0].imshow(u_pred, extent=(0, 10, 0, 10), origin='lower', cmap='viridis')
-        axes[0].set_xlabel('X')
-        axes[0].set_ylabel('Y')
-        axes[0].set_title('Predicted Displacement')
-
-        axes[1].imshow((u_pred - u_real) ** 2, extent=(0, 10, 0, 10), origin='lower', cmap='viridis')
-        axes[1].set_xlabel('X')
-        axes[1].set_ylabel('Y')
-        axes[1].set_title('Squared Error Displacement: {}'.format(NMSE))
-
-        plt.tight_layout()
-        plt.show()
-
-        return NMSE

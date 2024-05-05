@@ -138,11 +138,9 @@ class PINNet(nn.Module):
     def forward(self, model_input):
         # Enables us to compute gradients w.r.t. input
         coords = model_input['coords']
-        ##COORDS.SHAPE = [1,1231,2]
         x, y = coords[:, :, 0], coords[:, :, 1]
         x = x[..., None]
         y = y[..., None]
-        ##X.SHAPE = [1,1231,1]
         x.requires_grad_(True)
         y.requires_grad_(True)
         if self.initial_conditions:  # TODO
@@ -162,7 +160,6 @@ class PINNet(nn.Module):
             self.initial_conditions = False
         else:
             o = self.net(torch.cat((x, y), dim=-1))
-        ## O.SHAPE = [1,1231,1]
         dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
         output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)
         return {'model_in': coords, 'model_out': output}
