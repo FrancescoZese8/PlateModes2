@@ -93,6 +93,7 @@ def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
     fig = plt.figure(figsize=(6, 4.5), dpi=100)
     plt.plot(torch.log(torch.tensor(history_loss['L_f'])), label='$L_f$ governing equation')
     plt.plot(torch.log(torch.tensor(history_loss['L_t'])), label='$L_t$ Known points')
+    plt.plot(torch.log(torch.tensor(history_loss['L_m'])), label='$L_m$')
     if not free_edges:
         plt.plot(torch.log(torch.tensor(history_loss['L_b0'])), label='$L_{b0}$ Dirichlet boundaries')
         plt.plot(torch.log(torch.tensor(history_loss['L_b2'])), label='$L_{b2}$ Moment boundaries')
@@ -108,6 +109,7 @@ def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
         fig2 = plt.figure(figsize=(6, 4.5), dpi=100)
         plt.plot(history_lambda['L_f_lambda'], label='$\lambda_f$ governing equation')
         plt.plot(history_lambda['L_t_lambda'], label='$\lambda_{t}$ Known points')
+        plt.plot(history_lambda['L_m_lambda'], label='$\lambda_{m}$')
         if not free_edges:
             plt.plot(history_lambda['L_b0_lambda'], label='$\lambda_{b0}$ Dirichlet boundaries')
             plt.plot(history_lambda['L_b2_lambda'], label='$\lambda_{b2}$ Moment boundaries')

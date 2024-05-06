@@ -123,13 +123,11 @@ class FCBlock(MetaModule):
 class PINNet(nn.Module):
     '''Architecture used by Raissi et al. 2019.'''
 
-    def __init__(self, known_disp_map, num_hidden_layers, hidden_features, initial_conditions=True, out_features=1, type='tanh', in_features=2, mode='mlp'):
+    def __init__(self, num_hidden_layers, hidden_features, initial_conditions=True, out_features=1, type='tanh', in_features=2, mode='mlp'):
         super().__init__()
         self.mode = mode
-        self.known_disp_map = known_disp_map
         self.num_hidden_layers = num_hidden_layers
         self.hidden_features = hidden_features
-        self.initial_conditions = initial_conditions
         self.net = FCBlock(in_features=in_features, out_features=out_features, num_hidden_layers=num_hidden_layers,
                            hidden_features=hidden_features, outermost_linear=True, nonlinearity=type,
                            weight_init=None)
@@ -143,23 +141,7 @@ class PINNet(nn.Module):
         y = y[..., None]
         x.requires_grad_(True)
         y.requires_grad_(True)
-        if self.initial_conditions:  # TODO
-            o = self.net(torch.cat((x, y), dim=-1))
-            x = np.squeeze(x)
-            y = np.squeeze(y)
-            known_disps = [self.known_disp_map[(round(i, 2), round(j, 2))] for (i, j) in zip(x.tolist(), y.tolist())]
-            #o = torch.tensor(o, dtype=torch.float32)
-            #o.requires_grad_(True)
-            known_disps = torch.tensor(known_disps)
-            o.retain_grad()
-            o.data = known_disps
-            #o.retain_grad()
-            o = o[None, ..., None]
-            x = x[None, ..., None]
-            y = y[None, ..., None]
-            self.initial_conditions = False
-        else:
-            o = self.net(torch.cat((x, y), dim=-1))
+        o = self.net(torch.cat((x, y), dim=-1))
         dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
         output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)
         return {'model_in': coords, 'model_out': output}

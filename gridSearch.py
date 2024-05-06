@@ -27,10 +27,15 @@ def gridSearch_Relobralo():
 
 
 def gridSearch_modes():
-    mode = [11, 18, 25, 36]
-    freq = [0.03027, 0.057536, 0.0975, 0.14482]
+     # 7: 0.0094905 / 8: 0.012216 / 9: 0.016826 / 11: 0.03027 / 13: 0.030792 / 14: 0.033438 / 18: 0.057536
+    # /20: 0.06447 / 23: 0.078311 / 24: 0.082339 / 25: 0.0975 / 27: 0.099372 / 30: 0.10527 / 32: 0.13573 / 33: 0.13573
+    # /36: 0.14482 / 39: 0.14971
+    mode = [7, 8, 9, 11, 14, 18, 23, 27, 30, 33]
+    freq = [0.0094905, 0.012216, 0.016826, 0.03027, 0.033438, 0.057536, 0.078311, 0.099372, 0.10527, 0.13573]
     for m, f in zip(mode, freq):
         NMSE = main.main(m, f)
+        print('NMSE: ', NMSE, 'mode: ', m, 'freq: ', f)
+
 
 
 def gridSearch_epochs():
@@ -54,4 +59,4 @@ def gridSearch_epochs():
     print('best_steps: ', best_steps)
 
 
-gridSearch_epochs()
+gridSearch_modes()

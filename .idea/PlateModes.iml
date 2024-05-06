@@ -4,7 +4,7 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
     </content>
-    <orderEntry type="jdk" jdkName="Remote Python 3.11.8 (sftp://fzese@10.79.0.13:22/nas/home/fzese/miniconda3/envs/plateModesEnv/bin/python)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="EulerInterpreter" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

@@ -7,19 +7,17 @@ import training
 import pandas as pd
 import visualization
 
-
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 150  # 150 ep, 50 step, em 23, ds 256, temperature=0.00001, rho=0.99, alpha=0.9
-n_step = 10
+num_epochs = 180  # 150 ep, 50 step, em 23, ds 256, temperature=0.00001, rho=0.99, alpha=0.9
+n_step = 50
 batch_size = 1
 total_length = 1
 lr = 0.001
 batch_size_domain = 1000
 num_hidden_layers = 2  # 2
-hidden_features = 128   # 64
+hidden_features = 128  # 64
 temperature = 10e-05
 rho = 0.9  # 0.9, 0.1
 alpha = 0.9  # 0.9, 0.5
@@ -29,7 +27,7 @@ opt_model = 'silu'
 mode = 'pinn'
 clip_grad = 1.0
 use_lbfgs = False
-relo = False
+relo = True
 max_epochs_without_improvement = 50
 
 W = 10
@@ -39,8 +37,10 @@ E = 0.7e5
 nue = 0.35
 den = 2700
 
-eigen_mode = 23  # 8: 0.012216 / 11: 0.03027 / 13: 0.030792 / 18: 0.057536 / 23: 0.078311 / 25: 0.0975 32: 0.13573 / 36: 0.14482 / 39: 0.14971
-omega = 0.078311
+eigen_mode = 23    # 7: 0.0094905 / 8: 0.012216 / 9: 0.016826 / 11: 0.03027 / 13: 0.030792 / 14: 0.033438
+# / 18: 0.057536 / 20: 0.06447 / 23: 0.078311 / 24: 0.082339 / 25: 0.0975 / 27: 0.099372 / 30: 0.10527
+# / 32: 0.13573 / 33: 0.13573 / 36: 0.14482 / 39: 0.14971
+omega = 0.078311 * 2 * torch.pi
 free_edges = True
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
@@ -54,46 +54,45 @@ for i in range(100):
         x_p.append(round(j * 0.1 + 0.05, 2))
         y_p.append(round(i * 0.1 + 0.05, 2))
 
-ds = 4  # 430
+sampled_points = [0.15, 2.55, 5.05, 7.45, 9.85]
+x_t = []
+y_t = []
+for y in sampled_points:
+    for x in sampled_points:
+        x_t.append(x)
+        y_t.append(y)
+
+# ds = 4  # 430
 full_known_disp = torch.tensor(df_numeric.iloc[:, 2:].values)
 full_known_disp = full_known_disp[:, eigen_mode]
+# known_disp = known_disp[:, eigen_mode]
 min_val = torch.min(full_known_disp)
 max_val = torch.max(full_known_disp)
 max_norm = 1
 full_known_disp = (-1 + 2 * (full_known_disp - min_val) / (max_val - min_val)) * max_norm
-# full_known_disp = known_disp
-
-'''x_t, y_t = [], []
-known_disp = []
-for i in range(100):
-    if (i+1) % ds == 0:
-        for j in range(100):
-            if (j+1) % ds == 0:
-                known_disp.append(full_known_disp[(i*100)+j])
-                x_t.append(round(j * 0.1 + 0.05, 2))
-                y_t.append(round(i * 0.1 + 0.05, 2))
-known_disp = torch.tensor(known_disp)'''
-known_disp = full_known_disp[::ds]
-x_t = x_p[::ds]
-y_t = y_p[::ds]
-# known_disp = known_disp * 1000
-# known_disp = known_disp.to(device)  # CUDA
+# known_disp = full_known_disp[::ds]
+# x_t = x_p[::ds]
+# y_t = y_p[::ds]
+full_known_disp_map = dict(zip(zip(x_p, y_p), full_known_disp))
+known_disp = [full_known_disp_map.get((round(i, 2), round(j, 2)), 0) for index, (i, j) in
+              enumerate(zip(x_t, y_t))]
 known_disp_map = dict(zip(zip(x_t, y_t), known_disp))
+known_disp = torch.tensor(known_disp)
 
 visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode, image_width=100,
                              image_height=100)
 
 plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=total_length, den=den,
                                  omega=omega, batch_size_domain=batch_size_domain, known_disp=known_disp,
-                                 full_known_disp=full_known_disp, known_disp_map=known_disp_map, x_t=x_t, y_t=y_t, x_p=x_p, y_p=y_p,
+                                 full_known_disp=full_known_disp, x_t=x_t, y_t=y_t, max_norm=max_norm,
                                  free_edges=free_edges, device=device)
 
 data_loader = DataLoader(plate, shuffle=True, batch_size=batch_size, pin_memory=False, num_workers=0)
-model = modules.PINNet(known_disp_map, num_hidden_layers=num_hidden_layers, hidden_features=hidden_features,
-                       initial_conditions=False, out_features=1, type=opt_model, mode=mode)
+model = modules.PINNet(num_hidden_layers=num_hidden_layers, hidden_features=hidden_features,
+                       out_features=1, type=opt_model, mode=mode)
 model = model.to(device)  # CUDA
 
-history_loss = {'L_f': [], 'L_b0': [], 'L_b2': [], 'L_u': [], 'L_t': []}
+history_loss = {'L_f': [], 'L_b0': [], 'L_b2': [], 'L_u': [], 'L_t': [], 'L_m': []}
 if not relo:
     loss_fn = loss.KirchhoffLoss(plate)
     kirchhoff_metric = loss.KirchhoffMetric(plate, free_edges=free_edges)
@@ -102,7 +101,7 @@ if not relo:
 else:
     loss_fn = loss.ReLoBRaLoKirchhoffLoss(plate, temperature=temperature, rho=rho, alpha=alpha)
     kirchhoff_metric = loss.KirchhoffMetric(plate, free_edges=free_edges)
-    history_lambda = {'L_f_lambda': [], 'L_b0_lambda': [], 'L_b2_lambda': [], 'L_t_lambda': []}
+    history_lambda = {'L_f_lambda': [], 'L_b0_lambda': [], 'L_b2_lambda': [], 'L_t_lambda': [], 'L_m_lambda': []}
     metric_lam = loss.ReLoBRaLoLambdaMetric(loss_fn, free_edges=free_edges)
 
 training.train(model=model, train_dataloader=data_loader, epochs=num_epochs, n_step=n_step, lr=lr,

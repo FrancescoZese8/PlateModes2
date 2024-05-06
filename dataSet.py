@@ -39,7 +39,7 @@ def compute_moments(D, nue, dudxx, dudyy):
 class KirchhoffDataset(Dataset):
 
     def __init__(self, T, nue, E, D, H, W, total_length, den: float, omega: float, batch_size_domain, known_disp,
-                 full_known_disp, known_disp_map, x_t, y_t, x_p, y_p, free_edges, device):
+                 full_known_disp, x_t, y_t, max_norm, free_edges, device):
         self.T = T
         self.nue = nue
         self.E = E
@@ -52,12 +52,12 @@ class KirchhoffDataset(Dataset):
         self.batch_size_domain = batch_size_domain
         self.known_disp = known_disp.to(device)
         self.full_known_disp = full_known_disp
-        self.known_disp_map = known_disp_map
         self.x_t = torch.tensor(x_t, dtype=torch.float)
         self.y_t = torch.tensor(y_t, dtype=torch.float)
+        self.max_norm = max_norm
         self.free_edges = free_edges
         self.device = device
-        self.num_loss = 2
+        self.num_loss = 3
 
     def __getitem__(self, item):
         x, y = self.training_batch()
@@ -81,8 +81,6 @@ class KirchhoffDataset(Dataset):
         y = torch.cat((self.y_t, y_random), dim=0)
         x = x[..., None]
         y = y[..., None]
-        #x = torch.randint(0, 100, (self.batch_size_domain,)) * 0.1 + 0.05
-        #y = torch.randint(0, 100, (self.batch_size_domain,)) * 0.1 + 0.05
         x = x.to(self.device)  # CUDA
         y = y.to(self.device)
 
@@ -107,6 +105,12 @@ class KirchhoffDataset(Dataset):
         dudxxyy = np.squeeze(preds[:, :, 5:6])
 
         err_t = self.known_disp - u_t
+        max_u = abs(u.max().item())
+        if max_u > self.max_norm:
+            err_m = max_u - self.max_norm
+        else:
+            err_m = 0
+        err_m = torch.tensor(err_m, dtype=torch.float)
         #known_disps = [self.known_disp_map.get((round(i, 2), round(j, 2)), u[index]) for index, (i, j) in
                        #enumerate(zip(x.tolist(), y.tolist()))]
         #known_disps = torch.tensor(known_disps).to(self.device)
@@ -114,9 +118,9 @@ class KirchhoffDataset(Dataset):
         f = dudxxxx + 2 * dudxxyy + dudyyyy - (
                 self.den * self.T * (self.omega ** 2)) / self.D * u
 
-        L_f = f ** 2 * 0
-
+        L_f = f ** 2
         L_t = err_t ** 2
+        L_m = err_m ** 2
 
         if not self.free_edges:
             # determine which points are on the boundaries of the domain
@@ -146,4 +150,4 @@ class KirchhoffDataset(Dataset):
                 return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_u': L_u, 'L_t': L_t}
             return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_t': L_t}
         else:
-            return {'L_f': L_f, 'L_t': L_t}
+            return {'L_f': L_f, 'L_t': L_t, 'L_m': L_m}
