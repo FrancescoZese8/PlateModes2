@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="$USER_HOME$/opt/anaconda3/envs/plateModes2" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="EulerInterpreter" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 3.11.8 (sftp://fzese@10.79.0.13:22/nas/home/fzese/miniconda3/envs/plateModesEnv/bin/python)" project-jdk-type="Python SDK" />
 </project>

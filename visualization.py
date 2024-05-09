@@ -41,7 +41,7 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
     plt.show()
 
 
-def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, device, pinn=None, image_width=100, image_height=100):
+def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device, pinn=None, image_width=100, image_height=100):
     x_p = torch.tensor(x_p, dtype=torch.float)
     y_p = torch.tensor(y_p, dtype=torch.float)
     x_p = x_p[..., None, None]
@@ -69,13 +69,13 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, device, pinn=Non
 
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
 
-    im1 = axes[0].imshow(u_pred, extent=(0, 10, 0, 10), origin='lower', cmap='viridis')  # Aggiunta della color map
+    im1 = axes[0].imshow(u_pred, extent=(0, 10, 0, 10), origin='lower', cmap='viridis', vmin=-max_norm, vmax=max_norm)
     axes[0].set_xlabel('X')
     axes[0].set_ylabel('Y')
     axes[0].set_title('Predicted Displacement mode: {}'.format(eigen_mode))
 
     im2 = axes[1].imshow((u_pred - u_real) ** 2, extent=(0, 10, 0, 10), origin='lower',
-                         cmap='viridis')  # Aggiunta della color map
+                         cmap='viridis', vmin=-max_norm, vmax=max_norm)
     axes[1].set_xlabel('X')
     axes[1].set_ylabel('Y')
     axes[1].set_title('Squared Error Displacement: {}'.format(NMSE))
@@ -93,7 +93,6 @@ def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
     fig = plt.figure(figsize=(6, 4.5), dpi=100)
     plt.plot(torch.log(torch.tensor(history_loss['L_f'])), label='$L_f$ governing equation')
     plt.plot(torch.log(torch.tensor(history_loss['L_t'])), label='$L_t$ Known points')
-    plt.plot(torch.log(torch.tensor(history_loss['L_m'])), label='$L_m$')
     if not free_edges:
         plt.plot(torch.log(torch.tensor(history_loss['L_b0'])), label='$L_{b0}$ Dirichlet boundaries')
         plt.plot(torch.log(torch.tensor(history_loss['L_b2'])), label='$L_{b2}$ Moment boundaries')
@@ -109,7 +108,6 @@ def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
         fig2 = plt.figure(figsize=(6, 4.5), dpi=100)
         plt.plot(history_lambda['L_f_lambda'], label='$\lambda_f$ governing equation')
         plt.plot(history_lambda['L_t_lambda'], label='$\lambda_{t}$ Known points')
-        plt.plot(history_lambda['L_m_lambda'], label='$\lambda_{m}$')
         if not free_edges:
             plt.plot(history_lambda['L_b0_lambda'], label='$\lambda_{b0}$ Dirichlet boundaries')
             plt.plot(history_lambda['L_b2_lambda'], label='$\lambda_{b2}$ Moment boundaries')

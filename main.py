@@ -7,20 +7,22 @@ import training
 import pandas as pd
 import visualization
 
+
+#def main(rhos, alphas):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 180  # 150 ep, 50 step, em 23, ds 256, temperature=0.00001, rho=0.99, alpha=0.9
+num_epochs = 200
 n_step = 50
 batch_size = 1
 total_length = 1
 lr = 0.001
 batch_size_domain = 1000
-num_hidden_layers = 2  # 2
-hidden_features = 128  # 64
+num_hidden_layers = 2
+hidden_features = 128
 temperature = 10e-05
-rho = 0.9  # 0.9, 0.1
-alpha = 0.9  # 0.9, 0.5
+rho = 0.5  # 0.99, 0.5
+alpha = 0.1  # 0.9, 0.1
 
 steps_til_summary = 10
 opt_model = 'silu'
@@ -37,10 +39,10 @@ E = 0.7e5
 nue = 0.35
 den = 2700
 
-eigen_mode = 23    # 7: 0.0094905 / 8: 0.012216 / 9: 0.016826 / 11: 0.03027 / 13: 0.030792 / 14: 0.033438
-# / 18: 0.057536 / 20: 0.06447 / 23: 0.078311 / 24: 0.082339 / 25: 0.0975 / 27: 0.099372 / 30: 0.10527
-# / 32: 0.13573 / 33: 0.13573 / 36: 0.14482 / 39: 0.14971
-omega = 0.078311 * 2 * torch.pi
+eigen_mode = 22    # 7: 0.0094905 / 8: 0.012216 / 9: 0.016826 / 11: 0.03027 / 13: 0.030792 / 14: 0.033438
+# / 18: 0.057536 / 20: 0.06447 / 22: 0.074002 / 23: 0.078311 / 24: 0.082339 / 25: 0.0975 / 27: 0.099372 / 30: 0.10527
+# / 32: 0.13573 / 33: 0.13573 / 34: 0.14103 / 36: 0.14482 / 39: 0.14971
+omega = 0.074002 * 2 * torch.pi
 free_edges = True
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
@@ -54,7 +56,7 @@ for i in range(100):
         x_p.append(round(j * 0.1 + 0.05, 2))
         y_p.append(round(i * 0.1 + 0.05, 2))
 
-sampled_points = [0.15, 2.55, 5.05, 7.45, 9.85]
+sampled_points = [0.25, 2.55, 5.05, 7.45, 9.75]
 x_t = []
 y_t = []
 for y in sampled_points:
@@ -111,8 +113,9 @@ training.train(model=model, train_dataloader=data_loader, epochs=num_epochs, n_s
                use_lbfgs=use_lbfgs, max_epochs_without_improvement=max_epochs_without_improvement, relo=relo)
 model.eval()
 
-NMSE = visualization.visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, device, model, image_width=100,
+NMSE = visualization.visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device, model, image_width=100,
                                           image_height=100)
 print('NMSE: ', NMSE)
 
 visualization.visualise_loss(free_edges, metric_lam, history_loss, history_lambda)
+    #return NMSE
