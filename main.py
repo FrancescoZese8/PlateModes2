@@ -32,29 +32,27 @@ use_lbfgs = False
 relo = True
 max_epochs_without_improvement = 50
 
-W = 10
-H = 10
-T = 0.2
-E = 0.7e5
-nue = 0.35
-den = 2700
+W = 0.35  # m
+H = 0.6
+T = 0.005
+E = 10e6  # spruce
+nue = 0.28
+den = 420
 
-eigen_mode = 22    # 7: 0.0094905 / 8: 0.012216 / 9: 0.016826 / 11: 0.03027 / 13: 0.030792 / 14: 0.033438
-# / 18: 0.057536 / 20: 0.06447 / 22: 0.074002 / 23: 0.078311 / 24: 0.082339 / 25: 0.0975 / 27: 0.099372 / 30: 0.10527
-# / 32: 0.13573 / 33: 0.13573 / 34: 0.14103 / 36: 0.14482 / 39: 0.14971
+eigen_mode = 22
 omega = 0.074002 * 2 * torch.pi
 free_edges = True
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 
-df = pd.read_csv('FieldOfDisplacement.csv', sep=';')
+df = pd.read_csv('ViolinPlateFOD.csv', sep=';')
 df_numeric = df.apply(pd.to_numeric, errors='coerce')
 
 x_p, y_p = [], []
-for i in range(100):
-    for j in range(100):
-        x_p.append(round(j * 0.1 + 0.05, 2))
-        y_p.append(round(i * 0.1 + 0.05, 2))
+for i in range(int(W*100)):
+    for j in range(int(H*100)):
+        x_p.append(round(j * 0.01 + 0.005, 2))
+        y_p.append(round(i * 0.01 + 0.005, 2))
 
 sampled_points = [0.25, 2.55, 5.05, 7.45, 9.75]
 x_t = []
