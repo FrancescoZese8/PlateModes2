@@ -71,9 +71,9 @@ class KirchhoffDataset(Dataset):
 
     def training_batch(self):
 
-        x_p, y_p = np.arange(0.05, 10.05, 0.1), np.arange(0.05, 10.05, 0.1)
-        x_index = np.random.randint(0, 100, size=self.batch_size_domain)
-        y_index = np.random.randint(0, 100, size=self.batch_size_domain)
+        x_p, y_p = np.arange(0.005, self.W, 0.01), np.arange(0.005, self.H, 0.01)
+        x_index = np.random.randint(0, int(self.W*100), size=self.batch_size_domain)
+        y_index = np.random.randint(0, int(self.H*100), size=self.batch_size_domain)
         x_random = torch.tensor(x_p[x_index], dtype=torch.float)
         y_random = torch.tensor(y_p[y_index], dtype=torch.float)
 
@@ -92,12 +92,12 @@ class KirchhoffDataset(Dataset):
         u_t = np.squeeze(preds[:, :len(self.x_t), 0:1])
         x = np.squeeze(x)
         y = np.squeeze(y)
+        u = np.squeeze(preds[:, :, 0:1])
         #dudxx = np.squeeze(preds[:, len(self.x_t):, 1:2])
         #dudyy = np.squeeze(preds[:, len(self.x_t):, 2:3])
         #dudxxxx = np.squeeze(preds[:, len(self.x_t):, 3:4])
         #dudyyyy = np.squeeze(preds[:, len(self.x_t):, 4:5])
         #dudxxyy = np.squeeze(preds[:, len(self.x_t):, 5:6])
-        u = np.squeeze(preds[:, :, 0:1])
         dudxx = np.squeeze(preds[:, :, 1:2])
         dudyy = np.squeeze(preds[:, :, 2:3])
         dudxxxx = np.squeeze(preds[:, :, 3:4])
@@ -105,6 +105,7 @@ class KirchhoffDataset(Dataset):
         dudxxyy = np.squeeze(preds[:, :, 5:6])
 
         err_t = self.known_disp - u_t
+        #print('u_t: ', u_t.shape, 'err_t: ', err_t.shape, 'kd: ', self.known_disp.shape)
         max_u = abs(u.max().item())
         if max_u > self.max_norm:
             err_m = max_u - self.max_norm
@@ -120,7 +121,7 @@ class KirchhoffDataset(Dataset):
 
         L_f = f ** 2
         L_t = err_t ** 2
-        L_m = err_m ** 2
+        L_m = err_m ** 2 * 0
 
         if not self.free_edges:
             # determine which points are on the boundaries of the domain
