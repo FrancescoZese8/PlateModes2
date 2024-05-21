@@ -4,12 +4,12 @@ import torch
 
 
 def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode, image_width,
-                   image_height, H, W):
-    known_disps = [known_disp_map.get((round(i, 3), round(j, 3)), 0) for index, (i, j) in
+                   image_height, H, W, sample_step, dist_bound, n_d):
+    known_disps = [known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for index, (i, j) in
                    enumerate(zip(x_p, y_p))]
     kdp = np.reshape(known_disps, (image_height, image_width))
     fkdp = np.reshape(full_known_disp, (image_height, image_width))
-    X, Y = np.meshgrid(np.arange(0.005, W, 0.01), np.arange(0.005, H, 0.01))
+    X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step), np.arange(dist_bound, H + dist_bound, sample_step))
 
     fig = plt.figure(figsize=(12, 10))
 
@@ -45,7 +45,7 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
     plt.show()
 
 
-def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device, image_width, image_height, H, W, model):
+def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device, image_width, image_height, H, W, model, sample_step, dist_bound):
     x_p = torch.tensor(x_p, dtype=torch.float)
     y_p = torch.tensor(y_p, dtype=torch.float)
     x_p = x_p[..., None, None]
@@ -62,7 +62,10 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
     u_pred = u_pred.cpu().detach().numpy().reshape(image_height, image_width)  # CUDA
     NMSE = (np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2)
 
-    X, Y = np.meshgrid(np.arange(0.005, W, 0.01), np.arange(0.005, H, 0.01))
+    du = dudyy.cpu().detach().numpy().reshape(image_height, image_width)
+
+    X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step),
+                       np.arange(dist_bound, H + dist_bound, sample_step))
 
     # Primo plot (plot 3D)
     fig = plt.figure(figsize=(8, 6))
@@ -82,6 +85,7 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
 
     im1 = axes[0].imshow(u_pred, extent=(0, W, 0, H), origin='lower', cmap='viridis', vmin=-max_norm,
                          vmax=max_norm)
+    #im1 = axes[0].imshow(du, extent=(0, W, 0, H), origin='lower', cmap='viridis')
     axes[0].set_xlabel('X')
     axes[0].set_ylabel('Y')
     axes[0].set_title('Predicted Displacement mode: {}'.format(eigen_mode))
@@ -96,6 +100,15 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
     fig.colorbar(im2, ax=axes[1])
 
     plt.tight_layout()
+    plt.show()
+
+    # Plot di du
+    plt.figure(figsize=(8, 6))
+    plt.imshow(du, extent=(0, W, 0, H), origin='lower', cmap='viridis')
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.title('dudyy')
+    plt.colorbar(label='Increment')
     plt.show()
 
     return NMSE

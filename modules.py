@@ -52,12 +52,13 @@ class FCBlock(MetaModule):
         # special first-layer initialization scheme
         nls_and_inits = {'sine': (Sine(), sine_init, first_layer_sine_init),
                          'relu': (nn.ReLU(inplace=True), init_weights_normal, None),
-                         'silu': (nn.SiLU(), init_weights_xavier, None),
+                         'silu': (nn.SiLU(), init_weights_xavier, None), #  first_layer_silu_init
                          'sigmoid': (nn.Sigmoid(), init_weights_xavier, None),
                          'tanh': (nn.Tanh(), init_weights_xavier, None),
                          'selu': (nn.SELU(inplace=True), init_weights_selu, None),
                          'softplus': (nn.Softplus(), init_weights_normal, None),
-                         'elu': (nn.ELU(inplace=True), init_weights_elu, None)}
+                         'elu': (nn.ELU(inplace=True), init_weights_elu, None),
+                         'mish': (nn.Mish(), init_weights_xavier, None)}
 
         nl, nl_weight_init, first_layer_init = nls_and_inits[nonlinearity]
 
@@ -123,7 +124,8 @@ class FCBlock(MetaModule):
 class PINNet(nn.Module):
     '''Architecture used by Raissi et al. 2019.'''
 
-    def __init__(self, num_hidden_layers, hidden_features, initial_conditions=True, out_features=1, type='tanh', in_features=2, mode='mlp'):
+    def __init__(self, num_hidden_layers, hidden_features, initial_conditions=True, out_features=1, type='tanh',
+                 in_features=2, mode='mlp'):
         super().__init__()
         self.mode = mode
         self.num_hidden_layers = num_hidden_layers
@@ -221,7 +223,7 @@ def init_weights_elu(m):
 def init_weights_xavier(m):
     if type(m) == BatchLinear or type(m) == nn.Linear:
         if hasattr(m, 'weight'):
-            nn.init.xavier_normal_(m.weight)
+            nn.init.xavier_normal_(m.weight, 1.0)
             nn.init.zeros_(m.bias)
 
 
@@ -239,3 +241,9 @@ def first_layer_sine_init(m):
             num_input = m.weight.size(-1)
             # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of factor 30
             m.weight.uniform_(-1 / num_input, 1 / num_input)
+
+
+def first_layer_silu_init(m):
+    with torch.no_grad():
+        if hasattr(m, 'weight'):
+            m.weight.uniform_(1, 5)

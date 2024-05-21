@@ -25,6 +25,7 @@ def compute_derivatives(x, y, u):
     dudxxxx = gradient(dudxxx, x)
     dudxxyy = gradient(dudxxy, y)
     dudyyyy = gradient(dudyyy, y)
+    print('dudx: ', dudxx)
 
     return dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy
 
@@ -39,7 +40,7 @@ def compute_moments(D, nue, dudxx, dudyy):
 class KirchhoffDataset(Dataset):
 
     def __init__(self, T, nue, E, D, H, W, total_length, den: float, omega: float, batch_size_domain, known_disp,
-                 full_known_disp, x_t, y_t, max_norm, free_edges, device):
+                 full_known_disp, x_t, y_t, max_norm, free_edges, device, sample_step, dist_bound, n_samp_x, n_samp_y):
         self.T = T
         self.nue = nue
         self.E = E
@@ -52,12 +53,16 @@ class KirchhoffDataset(Dataset):
         self.batch_size_domain = batch_size_domain
         self.known_disp = known_disp.to(device)
         self.full_known_disp = full_known_disp
-        self.x_t = torch.tensor(x_t, dtype=torch.float)
-        self.y_t = torch.tensor(y_t, dtype=torch.float)
+        self.x_t = torch.tensor(x_t, dtype=torch.float32)
+        self.y_t = torch.tensor(y_t, dtype=torch.float32)
         self.max_norm = max_norm
         self.free_edges = free_edges
         self.device = device
         self.num_loss = 3
+        self.sample_step = sample_step
+        self.dist_bound = dist_bound
+        self.n_samp_x = n_samp_x
+        self.n_samp_y = n_samp_y
 
     def __getitem__(self, item):
         x, y = self.training_batch()
@@ -71,14 +76,19 @@ class KirchhoffDataset(Dataset):
 
     def training_batch(self):
 
-        x_p, y_p = np.arange(0.005, self.W, 0.01), np.arange(0.005, self.H, 0.01)
-        x_index = np.random.randint(0, int(self.W*100), size=self.batch_size_domain)
-        y_index = np.random.randint(0, int(self.H*100), size=self.batch_size_domain)
+        #x_p = np.arange(self.dist_bound, self.W + self.dist_bound, self.sample_step) + 5  # off
+        #y_p = np.arange(self.dist_bound, self.H + self.dist_bound, self.sample_step) + 5
+        x_p = np.arange(self.dist_bound, self.W + self.dist_bound, self.sample_step)
+        y_p = np.arange(self.dist_bound, self.H + self.dist_bound, self.sample_step)
+        x_index = np.random.randint(0, self.n_samp_x, size=self.batch_size_domain)
+        y_index = np.random.randint(0, self.n_samp_y, size=self.batch_size_domain)
         x_random = torch.tensor(x_p[x_index], dtype=torch.float)
         y_random = torch.tensor(y_p[y_index], dtype=torch.float)
 
         x = torch.cat((self.x_t, x_random), dim=0)
         y = torch.cat((self.y_t, y_random), dim=0)
+        #x = x*10  # norm
+        #y = y*10
         x = x[..., None]
         y = y[..., None]
         x = x.to(self.device)  # CUDA
@@ -115,13 +125,12 @@ class KirchhoffDataset(Dataset):
         #known_disps = [self.known_disp_map.get((round(i, 2), round(j, 2)), u[index]) for index, (i, j) in
                        #enumerate(zip(x.tolist(), y.tolist()))]
         #known_disps = torch.tensor(known_disps).to(self.device)
-        #err_t = known_disps - u
-        f = dudxxxx + 2 * dudxxyy + dudyyyy - (
-                self.den * self.T * (self.omega ** 2)) / self.D * u
+        f = (dudxxxx + 2 * dudxxyy + dudyyyy -
+             (self.den * self.T * (self.omega ** 2)) / self.D * u)
 
         L_f = f ** 2
         L_t = err_t ** 2
-        L_m = err_m ** 2 * 0
+        L_m = err_m ** 2
 
         if not self.free_edges:
             # determine which points are on the boundaries of the domain
