@@ -4,7 +4,7 @@ import time
 
 
 def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_fn,
-          history_loss, history_lambda, metric, metric_lam, max_epochs_without_improvement, clip_grad=False,
+          history_loss, history_lambda, metric, metric_lam, max_epochs_without_improvement, free_edges, clip_grad=False,
           use_lbfgs=False, relo=True):
     optim = torch.optim.Adam(lr=lr, params=model.parameters())
 
@@ -83,25 +83,35 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
                         current_lr = optim.param_groups[0]['lr']
                         l_u_met = metric_result['L_f'] + metric_result['L_b0'] + metric_result['L_b2'] + metric_result[
                             'L_t']
-                        if relo:
-                            tqdm.write("Epoch %d, Total loss %0.3e, L_f %0.3e, L_b0 %0.3e, L_b2 %0.3e, L_u %0.3e, "
+                        if free_edges:
+                            tqdm.write("Epoch %d, Total loss %0.3e, L_f %0.3e, "
                                        "L_t %0.3e,"
-                                       "iteration time %0.6f, Lam_f = %0.3f, Lam_b0 = %0.3f, Lam_b2 = %0.3f, lr: %.3e"
+                                       "iteration time %0.6f, Lam_f = %0.3f, lam_t = %0.3f, lr: %.3e"
                                        % (
-                                           epoch, l_u_met, metric_result['L_f'], metric_result['L_b0'],
-                                           metric_result['L_b2'],
-                                           metric_result['L_u'], metric_result['L_t'], time.time() - start_time,
-                                           lambda_results['L_f'],
-                                           lambda_results['L_b0'], lambda_results['L_b2'], current_lr))
+                                        epoch, l_u_met, metric_result['L_f'],
+                                        metric_result['L_t'], time.time() - start_time,
+                                        lambda_results['L_f'], lambda_results['L_t'],
+                                        current_lr))
                         else:
-                            tqdm.write("Epoch %d, Total loss %0.3e, L_f %0.3e, L_b0 %0.3e, L_b2 %0.3e, L_u %0.3e, "
-                                       "L_t %0.3e,"
-                                       "iteration time %0.6f, lr: %.3e"
-                                       % (
-                                           epoch, l_u_met, metric_result['L_f'], metric_result['L_b0'],
-                                           metric_result['L_b2'],
-                                           metric_result['L_u'], metric_result['L_t'], time.time() - start_time,
-                                           current_lr))
+                            if relo:
+                                tqdm.write("Epoch %d, Total loss %0.3e, L_f %0.3e, L_b0 %0.3e, L_b2 %0.3e, L_u %0.3e, "
+                                           "L_t %0.3e,"
+                                           "iteration time %0.6f, Lam_f = %0.3f, Lam_b0 = %0.3f, Lam_b2 = %0.3f, lr: %.3e"
+                                           % (
+                                               epoch, l_u_met, metric_result['L_f'], metric_result['L_b0'],
+                                               metric_result['L_b2'],
+                                               metric_result['L_u'], metric_result['L_t'], time.time() - start_time,
+                                               lambda_results['L_f'],
+                                               lambda_results['L_b0'], lambda_results['L_b2'], current_lr))
+                            else:
+                                tqdm.write("Epoch %d, Total loss %0.3e, L_f %0.3e, L_b0 %0.3e, L_b2 %0.3e, L_u %0.3e, "
+                                           "L_t %0.3e,"
+                                           "iteration time %0.6f, lr: %.3e"
+                                           % (
+                                               epoch, l_u_met, metric_result['L_f'], metric_result['L_b0'],
+                                               metric_result['L_b2'],
+                                               metric_result['L_u'], metric_result['L_t'], time.time() - start_time,
+                                               current_lr))
                     total_steps += 1
 
             lr_scheduler.step(train_loss)

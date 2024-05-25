@@ -8,7 +8,6 @@ import pandas as pd
 import visualization
 import numpy as np
 
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
@@ -31,39 +30,27 @@ clip_grad = 1.0
 use_lbfgs = False
 relo = True
 max_epochs_without_improvement = 50
-big = False
-
-if big:
-    W, H, T, E, nue, den = 6, 6, 0.005, 10e6, 0.28, 420
-else:
-    W, H, T, E, nue, den = 0.6, 0.6, 0.005, 10e6, 0.28, 420
-#W, H, T, E, nue, den = 10, 10, 0.2, 0.7e5, 0.35, 2700
-
-
-eigen_mode = 7
-#eigen_mode = 11
-if big:
-    omega = 0.020203 * 2 * torch.pi
-else:
-    omega = 2.0318 * 2 * torch.pi
 free_edges = True
+
+W, H, T, E, nue, den = 0.6, 0.6, 0.005, 10e6, 0.28, 420#
+#W, H, T, E, nue, den = 10, 10, 0.2, 0.7e5, 0.35, 2700
+W, H, scaling_factor = dataSet.scale_to_range(W, H, 1, 10)
+print('W, H, scaling_factor: ', W, H, scaling_factor)
+
+eigen_mode = 22
+#omega = 0.078311 * 2 * torch.pi
+omega = 15.709 * 2 * torch.pi  ## INVERTI BATCH NORM, PARAMETRI RELO, PROFONDITà RETE, NUM EPOCHE
+omega = omega / scaling_factor ** 2
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 
-if big:
-    df = pd.read_csv('BigSquarePlateFOD.csv', sep=';')
-else:
-    df = pd.read_csv('SquarePlateFOD.csv', sep=';')#
+
+df = pd.read_csv('SquarePlateFOD.csv', sep=';')
 #df = pd.read_csv('FieldOfDisplacement.csv', sep=';')
 df_numeric = df.apply(pd.to_numeric, errors='coerce')
-n_samp_x = 60
-n_samp_y = 60
-#n_samp_x = 100
-#n_samp_y = 100
-if big:
-    n_d = 2
-else:
-    n_d = 3
+n_samp_x, n_samp_y = 60, 60
+#n_samp_x, n_samp_y = 100, 100
+n_d = 2
 
 sample_step = W/n_samp_x
 if H/n_samp_y != sample_step:
@@ -80,11 +67,9 @@ for i in range(n_samp_y):
 #y_p = [y + 5 for y in y_p]
 #sampled_points = [0.25, 2.55, 5.05, 7.45, 9.75]
 ##sampled_points = [0.025, 0.125, 0.225, 0.325]
-if big:
-    sampled_points = [0.25, 1.35, 2.45, 3.55, 4.65, 5.75]
-else:
-    sampled_points = [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]
-
+#sampled_points = [0.25, 1.35, 2.45, 3.55, 4.65, 5.75]
+sampled_points = [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]
+sampled_points = [round(point * scaling_factor, n_d) for point in sampled_points]
 #sampled_points = [x + 5 for x in [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]]  # off
 #sampled_points = [x * 10 for x in [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]]  # norm
 
@@ -94,6 +79,9 @@ for y in sampled_points:
     for x in sampled_points:
         x_t.append(x)
         y_t.append(y)
+
+#x_t = x_p
+#y_t = y_p
 
 
 full_known_disp = torch.tensor(df_numeric.iloc[:, 2:].values)
@@ -137,7 +125,7 @@ else:
 training.train(model=model, train_dataloader=data_loader, epochs=num_epochs, n_step=n_step, lr=lr,
                steps_til_summary=steps_til_summary, loss_fn=loss_fn, history_loss=history_loss,
                history_lambda=history_lambda,
-               metric=kirchhoff_metric, metric_lam=metric_lam, clip_grad=clip_grad,
+               metric=kirchhoff_metric, metric_lam=metric_lam, free_edges=free_edges, clip_grad=clip_grad,
                use_lbfgs=use_lbfgs, max_epochs_without_improvement=max_epochs_without_improvement, relo=relo)
 model.eval()
 

@@ -52,7 +52,7 @@ class FCBlock(MetaModule):
         # special first-layer initialization scheme
         nls_and_inits = {'sine': (Sine(), sine_init, first_layer_sine_init),
                          'relu': (nn.ReLU(inplace=True), init_weights_normal, None),
-                         'silu': (nn.SiLU(), init_weights_xavier, None), #  first_layer_silu_init
+                         'silu': (nn.SiLU(), init_weights_xavier, None),  # first_layer_silu_init
                          'sigmoid': (nn.Sigmoid(), init_weights_xavier, None),
                          'tanh': (nn.Tanh(), init_weights_xavier, None),
                          'selu': (nn.SELU(inplace=True), init_weights_selu, None),
@@ -74,7 +74,7 @@ class FCBlock(MetaModule):
 
         for i in range(num_hidden_layers):
             self.net.append(MetaSequential(
-                BatchLinear(hidden_features, hidden_features, bias=True), nl
+                 nn.BatchNorm1d(hidden_features), BatchLinear(hidden_features, hidden_features, bias=True), nl
             ))
 
         if outermost_linear:
@@ -139,6 +139,8 @@ class PINNet(nn.Module):
         # Enables us to compute gradients w.r.t. input
         coords = model_input['coords']
         x, y = coords[:, :, 0], coords[:, :, 1]
+        x = torch.squeeze(x)
+        y = torch.squeeze(y)
         x = x[..., None]
         y = y[..., None]
         x.requires_grad_(True)
@@ -246,4 +248,4 @@ def first_layer_sine_init(m):
 def first_layer_silu_init(m):
     with torch.no_grad():
         if hasattr(m, 'weight'):
-            m.weight.uniform_(1, 5)
+            nn.init.xavier_normal_(m.weight, 1.0)

@@ -56,13 +56,14 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
     c = {'coords': torch.cat([x, y], dim=-1).float()}
     pred = model(c)['model_out']
     u_pred, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = (
-        pred[:, :, 0:1], pred[:, :, 1:2], pred[:, :, 2:3], pred[:, :, 3:4], pred[:, :, 4:5], pred[:, :, 5:6]
+        pred[:, 0:1], pred[:, 1:2], pred[:, 2:3], pred[:, 3:4], pred[:, 4:5], pred[:, 5:6]
     )
     u_real = full_known_disp.numpy().reshape(image_height, image_width)
     u_pred = u_pred.cpu().detach().numpy().reshape(image_height, image_width)  # CUDA
     NMSE = (np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2)
 
-    du = dudyy.cpu().detach().numpy().reshape(image_height, image_width)
+    dudy = dudyyyy.cpu().detach().numpy().reshape(image_height, image_width)
+    dudx = dudxxxx.cpu().detach().numpy().reshape(image_height, image_width)
 
     X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step),
                        np.arange(dist_bound, H + dist_bound, sample_step))
@@ -104,10 +105,19 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
 
     # Plot di du
     plt.figure(figsize=(8, 6))
-    plt.imshow(du, extent=(0, W, 0, H), origin='lower', cmap='viridis')
+    plt.imshow(dudy, extent=(0, W, 0, H), origin='lower', cmap='viridis')
     plt.xlabel('X')
     plt.ylabel('Y')
-    plt.title('dudyy')
+    plt.title('dudyyyy')
+    plt.colorbar(label='Increment')
+    plt.show()
+
+    # Plot di du
+    plt.figure(figsize=(8, 6))
+    plt.imshow(dudx, extent=(0, W, 0, H), origin='lower', cmap='viridis')
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.title('dudxxxx')
     plt.colorbar(label='Increment')
     plt.show()
 
