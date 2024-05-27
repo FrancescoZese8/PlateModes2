@@ -1,42 +1,48 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+from matplotlib import cm
+from matplotlib.colors import Normalize
+
 
 
 def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode, image_width,
-                   image_height, H, W, sample_step, dist_bound, n_d):
+                   image_height, H, W, sample_step, dist_bound, n_d, color):
     known_disps = [known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for index, (i, j) in
                    enumerate(zip(x_p, y_p))]
     kdp = np.reshape(known_disps, (image_height, image_width))
     fkdp = np.reshape(full_known_disp, (image_height, image_width))
     X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step), np.arange(dist_bound, H + dist_bound, sample_step))
 
+
     fig = plt.figure(figsize=(12, 10))
 
     # Primo subplot
     ax3d_1 = fig.add_subplot(221, projection='3d')
-    surf1 = ax3d_1.plot_surface(X, Y, fkdp, cmap='viridis')
+    surf1 = ax3d_1.plot_surface(X, Y, fkdp, cmap=color)
     ax3d_1.set_xlabel('X')
     ax3d_1.set_ylabel('Y')
     ax3d_1.set_title('Real Displacement mode: {}'.format(eigen_mode))
 
+
     # Secondo subplot
     ax2d_1 = fig.add_subplot(222)
-    im1 = ax2d_1.imshow(fkdp, extent=(0, W, 0, H), origin='lower', cmap='viridis')
+    im1 = ax2d_1.imshow(fkdp, extent=(0, W, 0, H), cmap=color)
     ax2d_1.set_xlabel('X')
     ax2d_1.set_ylabel('Y')
     ax2d_1.set_title('Real Displacement mode: {}'.format(eigen_mode))
 
+
     # Terzo subplot
     ax3d_2 = fig.add_subplot(223, projection='3d')
-    surf2 = ax3d_2.plot_surface(X, Y, kdp, cmap='viridis')
+    surf2 = ax3d_2.plot_surface(X, Y, kdp, cmap=color)
     ax3d_2.set_xlabel('X')
     ax3d_2.set_ylabel('Y')
     ax3d_2.set_title('Known Points: {}'.format(len(known_disp)))
 
     # Quarto subplot
     ax2d_2 = fig.add_subplot(224)
-    im2 = ax2d_2.imshow(kdp, extent=(0, W, 0, H), origin='lower', cmap='viridis')
+    im2 = ax2d_2.imshow(kdp, extent=(0, W, 0, H), origin='lower', cmap=color)
     ax2d_2.set_xlabel('X')
     ax2d_2.set_ylabel('Y')
     ax2d_2.set_title('Known Points: {}'.format(len(known_disp)))
@@ -45,7 +51,7 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
     plt.show()
 
 
-def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device, image_width, image_height, H, W, model, sample_step, dist_bound):
+def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device, image_width, image_height, H, W, model, sample_step, dist_bound, color):
     x_p = torch.tensor(x_p, dtype=torch.float)
     y_p = torch.tensor(y_p, dtype=torch.float)
     x_p = x_p[..., None, None]
@@ -60,7 +66,7 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
     )
     u_real = full_known_disp.numpy().reshape(image_height, image_width)
     u_pred = u_pred.cpu().detach().numpy().reshape(image_height, image_width)  # CUDA
-    NMSE = (np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2)
+    NMSE = round((np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2), 5)
 
     dudy = dudyyyy.cpu().detach().numpy().reshape(image_height, image_width)
     dudx = dudxxxx.cpu().detach().numpy().reshape(image_height, image_width)
@@ -68,10 +74,11 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
     X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step),
                        np.arange(dist_bound, H + dist_bound, sample_step))
 
+
     # Primo plot (plot 3D)
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(X, Y, u_pred, cmap='inferno')
+    ax.plot_surface(X, Y, u_pred, cmap=color)
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
@@ -84,15 +91,12 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
     # Secondo plot (subplot con due immagini)
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
 
-    im1 = axes[0].imshow(u_pred, extent=(0, W, 0, H), origin='lower', cmap='viridis', vmin=-max_norm,
-                         vmax=max_norm)
-    #im1 = axes[0].imshow(du, extent=(0, W, 0, H), origin='lower', cmap='viridis')
+    im1 = axes[0].imshow(u_pred, extent=(0, W, 0, H), origin='lower', cmap=color)
     axes[0].set_xlabel('X')
     axes[0].set_ylabel('Y')
     axes[0].set_title('Predicted Displacement mode: {}'.format(eigen_mode))
 
-    im2 = axes[1].imshow((u_pred - u_real) ** 2, extent=(0, W, 0, H), origin='lower',
-                         cmap='viridis', vmin=-max_norm, vmax=max_norm)
+    im2 = axes[1].imshow((u_pred - u_real) ** 2, extent=(0, W, 0, H), cmap=color)
     axes[1].set_xlabel('X')
     axes[1].set_ylabel('Y')
     axes[1].set_title('Squared Error Displacement: {}'.format(NMSE))
@@ -105,7 +109,7 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
 
     # Plot di du
     plt.figure(figsize=(8, 6))
-    plt.imshow(dudy, extent=(0, W, 0, H), origin='lower', cmap='viridis')
+    plt.imshow(dudy, extent=(0, W, 0, H), origin='lower', cmap=color)
     plt.xlabel('X')
     plt.ylabel('Y')
     plt.title('dudyyyy')
@@ -114,7 +118,7 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
 
     # Plot di du
     plt.figure(figsize=(8, 6))
-    plt.imshow(dudx, extent=(0, W, 0, H), origin='lower', cmap='viridis')
+    plt.imshow(dudx, extent=(0, W, 0, H), origin='lower', cmap=color)
     plt.xlabel('X')
     plt.ylabel('Y')
     plt.title('dudxxxx')

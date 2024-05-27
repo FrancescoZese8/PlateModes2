@@ -74,7 +74,7 @@ class FCBlock(MetaModule):
 
         for i in range(num_hidden_layers):
             self.net.append(MetaSequential(
-                 nn.BatchNorm1d(hidden_features), BatchLinear(hidden_features, hidden_features, bias=True), nl
+                 BatchLinear(hidden_features, hidden_features, bias=True), nn.BatchNorm1d(hidden_features), nl
             ))
 
         if outermost_linear:

@@ -8,10 +8,11 @@ import pandas as pd
 import visualization
 import numpy as np
 
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 50
+num_epochs = 100
 n_step = 50
 batch_size = 1
 total_length = 1
@@ -31,15 +32,16 @@ use_lbfgs = False
 relo = True
 max_epochs_without_improvement = 50
 free_edges = True
+color = 'bwr'
 
-W, H, T, E, nue, den = 0.6, 0.6, 0.005, 10e6, 0.28, 420#
+W, H, T, E, nue, den = 0.6, 0.6, 0.005, 10e6, 0.28, 420
 #W, H, T, E, nue, den = 10, 10, 0.2, 0.7e5, 0.35, 2700
 W, H, scaling_factor = dataSet.scale_to_range(W, H, 1, 10)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
 eigen_mode = 22
 #omega = 0.078311 * 2 * torch.pi
-omega = 15.709 * 2 * torch.pi  ## INVERTI BATCH NORM, PARAMETRI RELO, PROFONDITà RETE, NUM EPOCHE
+omega = 15.709 * 2 * torch.pi
 omega = omega / scaling_factor ** 2
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
@@ -97,7 +99,7 @@ known_disp_map = dict(zip(zip(x_t, y_t), known_disp))
 known_disp = torch.tensor(known_disp)
 
 visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode, image_width=n_samp_x,
-                             image_height=n_samp_y, H=H, W=W, sample_step=sample_step, dist_bound=dist_bound, n_d=n_d)
+                             image_height=n_samp_y, H=H, W=W, sample_step=sample_step, dist_bound=dist_bound, n_d=n_d, color=color)
 
 plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=total_length, den=den,
                                  omega=omega, batch_size_domain=batch_size_domain, known_disp=known_disp,
@@ -133,7 +135,7 @@ model.eval()
 #y_p = np.array(y_p) * 10
 NMSE = visualization.visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device, image_width=n_samp_x,
                                           image_height=n_samp_y, H=H, W=W, model=model, sample_step=sample_step,
-                                          dist_bound=dist_bound)
+                                          dist_bound=dist_bound, color=color)
 print('NMSE: ', NMSE)
 
 visualization.visualise_loss(free_edges, metric_lam, history_loss, history_lambda)
