@@ -12,14 +12,14 @@ import visualization
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 200
+num_epochs = 120
 n_step = 50
 batch_size = 1
 total_length = 1
 lr = 0.001
 batch_size_domain = 1000
 num_hidden_layers = 2
-hidden_features = 128
+hidden_features = 64
 temperature = 10e-05
 rho = 0.5  # 0.99, 0.5
 alpha = 0.1  # 0.9, 0.1

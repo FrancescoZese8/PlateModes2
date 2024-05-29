@@ -73,7 +73,7 @@ class FCBlock(MetaModule):
 
         for i in range(num_hidden_layers):
             self.net.append(MetaSequential(
-                BatchLinear(hidden_features, hidden_features, bias=True), nl
+                nn.BatchNorm1d(hidden_features), BatchLinear(hidden_features, hidden_features, bias=True), nl
             ))
 
         if outermost_linear:
@@ -137,6 +137,8 @@ class PINNet(nn.Module):
         # Enables us to compute gradients w.r.t. input
         coords = model_input['coords']
         x, y = coords[:, :, 0], coords[:, :, 1]
+        x = torch.squeeze(x)
+        y = torch.squeeze(y)
         x = x[..., None]
         y = y[..., None]
         x.requires_grad_(True)

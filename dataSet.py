@@ -89,7 +89,7 @@ class KirchhoffDataset(Dataset):
     def compute_loss(self, x, y, preds, eval=False):
         # governing equation loss
         #u = np.squeeze(preds[:, len(self.x_t):, 0:1])
-        u_t = np.squeeze(preds[:, :len(self.x_t), 0:1])
+        u_t = np.squeeze(preds[:len(self.x_t), 0:1])
         x = np.squeeze(x)
         y = np.squeeze(y)
         #dudxx = np.squeeze(preds[:, len(self.x_t):, 1:2])
@@ -97,12 +97,12 @@ class KirchhoffDataset(Dataset):
         #dudxxxx = np.squeeze(preds[:, len(self.x_t):, 3:4])
         #dudyyyy = np.squeeze(preds[:, len(self.x_t):, 4:5])
         #dudxxyy = np.squeeze(preds[:, len(self.x_t):, 5:6])
-        u = np.squeeze(preds[:, :, 0:1])
-        dudxx = np.squeeze(preds[:, :, 1:2])
-        dudyy = np.squeeze(preds[:, :, 2:3])
-        dudxxxx = np.squeeze(preds[:, :, 3:4])
-        dudyyyy = np.squeeze(preds[:, :, 4:5])
-        dudxxyy = np.squeeze(preds[:, :, 5:6])
+        u = np.squeeze(preds[:, 0:1])
+        dudxx = np.squeeze(preds[:, 1:2])
+        dudyy = np.squeeze(preds[:, 2:3])
+        dudxxxx = np.squeeze(preds[:, 3:4])
+        dudyyyy = np.squeeze(preds[:, 4:5])
+        dudxxyy = np.squeeze(preds[:, 5:6])
 
         err_t = self.known_disp - u_t
         max_u = abs(u.max().item())
