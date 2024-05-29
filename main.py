@@ -12,7 +12,7 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 100
+num_epochs = 50
 n_step = 50
 batch_size = 1
 total_length = 1
@@ -21,8 +21,8 @@ batch_size_domain = 1000
 num_hidden_layers = 2
 hidden_features = 128
 temperature = 10e-05
-rho = 0.5  # 0.99, 0.5
-alpha = 0.1  # 0.9, 0.1
+rho = 0.35  # 0.99, 0.5, 0.3 da esplorare tra 0.35 e 0.5
+alpha = 0.1  # 0.9, 0.1, 0.1 da esplorare tra 0.1 e 0.5
 
 steps_til_summary = 10
 opt_model = 'silu'  # mish
@@ -32,27 +32,28 @@ use_lbfgs = False
 relo = True
 max_epochs_without_improvement = 50
 free_edges = True
-color = 'bwr'
+color = 'viridis'  # bwr
 
-W, H, T, E, nue, den = 0.6, 0.6, 0.005, 10e6, 0.28, 420
+W, H, T, E, nue, den = 0.35, 0.6, 0.005, 10e6, 0.28, 420
 #W, H, T, E, nue, den = 10, 10, 0.2, 0.7e5, 0.35, 2700
 W, H, scaling_factor = dataSet.scale_to_range(W, H, 1, 10)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
-eigen_mode = 22
+eigen_mode = 21
 #omega = 0.078311 * 2 * torch.pi
-omega = 15.709 * 2 * torch.pi
+omega = 23.653 * 2 * torch.pi
 omega = omega / scaling_factor ** 2
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 
 
-df = pd.read_csv('SquarePlateFOD.csv', sep=';')
-#df = pd.read_csv('FieldOfDisplacement.csv', sep=';')
+df = pd.read_csv('ViolinPlateFOD.csv', sep=';')
+#df = pd.read_csv('SquarePlateFOD.csv', sep=';')
 df_numeric = df.apply(pd.to_numeric, errors='coerce')
-n_samp_x, n_samp_y = 60, 60
+n_samp_x, n_samp_y = 35, 60
+#n_samp_x, n_samp_y = 60, 60
 #n_samp_x, n_samp_y = 100, 100
-n_d = 2
+n_d = 3#
 
 sample_step = W/n_samp_x
 if H/n_samp_y != sample_step:
@@ -68,17 +69,22 @@ for i in range(n_samp_y):
 #x_p = [x + 5 for x in x_p]  # off
 #y_p = [y + 5 for y in y_p]
 #sampled_points = [0.25, 2.55, 5.05, 7.45, 9.75]
-##sampled_points = [0.025, 0.125, 0.225, 0.325]
 #sampled_points = [0.25, 1.35, 2.45, 3.55, 4.65, 5.75]
-sampled_points = [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]
-sampled_points = [round(point * scaling_factor, n_d) for point in sampled_points]
+
+sampled_points_x = [0.025, 0.125, 0.225, 0.325]
+sampled_points_y = [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]
+sampled_points_x = [round(point * scaling_factor, n_d) for point in sampled_points_x]
+sampled_points_y = [round(point * scaling_factor, n_d) for point in sampled_points_y]
+
+#sampled_points = [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]
+#sampled_points = [round(point * scaling_factor, n_d) for point in sampled_points]
 #sampled_points = [x + 5 for x in [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]]  # off
 #sampled_points = [x * 10 for x in [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]]  # norm
 
 x_t = []
 y_t = []
-for y in sampled_points:
-    for x in sampled_points:
+for y in sampled_points_y:
+    for x in sampled_points_x:
         x_t.append(x)
         y_t.append(y)
 
@@ -131,11 +137,10 @@ training.train(model=model, train_dataloader=data_loader, epochs=num_epochs, n_s
                use_lbfgs=use_lbfgs, max_epochs_without_improvement=max_epochs_without_improvement, relo=relo)
 model.eval()
 
-#x_p = np.array(x_p) * 10  # norm
-#y_p = np.array(y_p) * 10
 NMSE = visualization.visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device, image_width=n_samp_x,
                                           image_height=n_samp_y, H=H, W=W, model=model, sample_step=sample_step,
                                           dist_bound=dist_bound, color=color)
 print('NMSE: ', NMSE)
 
 visualization.visualise_loss(free_edges, metric_lam, history_loss, history_lambda)
+

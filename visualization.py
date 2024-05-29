@@ -27,7 +27,7 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
 
     # Secondo subplot
     ax2d_1 = fig.add_subplot(222)
-    im1 = ax2d_1.imshow(fkdp, extent=(0, W, 0, H), cmap=color)
+    im1 = ax2d_1.imshow(fkdp, extent=(0, W/10, 0, H/10), origin='lower', cmap=color)  # TODO /100
     ax2d_1.set_xlabel('X')
     ax2d_1.set_ylabel('Y')
     ax2d_1.set_title('Real Displacement mode: {}'.format(eigen_mode))
@@ -42,7 +42,7 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
 
     # Quarto subplot
     ax2d_2 = fig.add_subplot(224)
-    im2 = ax2d_2.imshow(kdp, extent=(0, W, 0, H), origin='lower', cmap=color)
+    im2 = ax2d_2.imshow(kdp, extent=(0, W/10, 0, H/10), origin='lower', cmap=color)
     ax2d_2.set_xlabel('X')
     ax2d_2.set_ylabel('Y')
     ax2d_2.set_title('Known Points: {}'.format(len(known_disp)))
@@ -91,12 +91,12 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
     # Secondo plot (subplot con due immagini)
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
 
-    im1 = axes[0].imshow(u_pred, extent=(0, W, 0, H), origin='lower', cmap=color)
+    im1 = axes[0].imshow(u_pred, extent=(0, W/10, 0, H/10), origin='lower', cmap=color)
     axes[0].set_xlabel('X')
     axes[0].set_ylabel('Y')
     axes[0].set_title('Predicted Displacement mode: {}'.format(eigen_mode))
 
-    im2 = axes[1].imshow((u_pred - u_real) ** 2, extent=(0, W, 0, H), cmap=color)
+    im2 = axes[1].imshow((u_pred - u_real) ** 2, extent=(0, W/10, 0, H/10), cmap=color)
     axes[1].set_xlabel('X')
     axes[1].set_ylabel('Y')
     axes[1].set_title('Squared Error Displacement: {}'.format(NMSE))
@@ -109,7 +109,7 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
 
     # Plot di du
     plt.figure(figsize=(8, 6))
-    plt.imshow(dudy, extent=(0, W, 0, H), origin='lower', cmap=color)
+    plt.imshow(dudy, extent=(0, W/10, 0, H/10), origin='lower', cmap=color)
     plt.xlabel('X')
     plt.ylabel('Y')
     plt.title('dudyyyy')
@@ -118,7 +118,7 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
 
     # Plot di du
     plt.figure(figsize=(8, 6))
-    plt.imshow(dudx, extent=(0, W, 0, H), origin='lower', cmap=color)
+    plt.imshow(dudx, extent=(0, W/10, 0, H/10), origin='lower', cmap=color)
     plt.xlabel('X')
     plt.ylabel('Y')
     plt.title('dudxxxx')

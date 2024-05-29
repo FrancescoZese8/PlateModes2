@@ -37,7 +37,7 @@ def compute_moments(D, nue, dudxx, dudyy):
     return mx, my
 
 
-def scale_to_range(W, H, min_value=1, max_value=10):
+def scale_to_range(W, H, min_value, max_value):
     scaling_factor = 1
 
     while max(W, H) < min_value or max(W, H) > max_value:
@@ -140,7 +140,7 @@ class KirchhoffDataset(Dataset):
         # enumerate(zip(x.tolist(), y.tolist()))]
         # known_disps = torch.tensor(known_disps).to(self.device)
         f = (dudxxxx + 2 * dudxxyy + dudyyyy -
-             (self.den * self.T * (self.omega ** 2)) / self.D * u)
+             (self.den * self.T * (self.omega ** 2)) / self.D * u)/10
 
         L_f = f ** 2
         L_t = err_t ** 2
