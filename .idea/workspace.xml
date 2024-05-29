@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="462bea2a-b01e-475e-9689-7b6f29a58050" name="Changes" comment="Dimensioni ridotte risolto con batchnorm1d">
+      <change beforePath="$PROJECT_DIR$/dataSet.py" beforeDir="false" afterPath="$PROJECT_DIR$/dataSet.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gridSearch.py" beforeDir="false" afterPath="$PROJECT_DIR$/gridSearch.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/visualization.py" beforeDir="false" afterPath="$PROJECT_DIR$/visualization.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="FBViolinPlate" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 5
+}</component>
+  <component name="ProjectId" id="2efqCO476Dh5QZE4OHncMAqS15f" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
+    &quot;Python.dataSet.executor&quot;: &quot;Run&quot;,
+    &quot;Python.gridSearch.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.modules.executor&quot;: &quot;Run&quot;,
+    &quot;Python.prove.executor&quot;: &quot;Run&quot;,
+    &quot;Python.visualization.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;FBViolinPlate&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;web.server&quot;,
+    &quot;two.files.diff.last.used.file&quot;: &quot;/Users/francescozese/PycharmProjects/PlateModes/main.py&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  }
+}</component>
+  <component name="RunManager">
+    <configuration name="main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+      <module name="PlateModes" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-python-sdk-d68999036c7f-b11f5e8da5ad-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-233.14475.56" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="462bea2a-b01e-475e-9689-7b6f29a58050" name="Changes" comment="" />
+      <created>1712305853158</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1712305853158</updated>
+      <workItem from="1712305857421" duration="64066000" />
+      <workItem from="1712851256609" duration="228598000" />
+      <workItem from="1714318067763" duration="70498000" />
+      <workItem from="1714636958336" duration="10337000" />
+      <workItem from="1714816494306" duration="62475000" />
+      <workItem from="1715082531818" duration="26980000" />
+      <workItem from="1715245743814" duration="1508000" />
+      <workItem from="1715349851946" duration="4673000" />
+      <workItem from="1715588830611" duration="16916000" />
+      <workItem from="1715620403140" duration="309000" />
+      <workItem from="1715620716636" duration="650000" />
+      <workItem from="1715677899099" duration="1805000" />
+      <workItem from="1715679712766" duration="1914000" />
+      <workItem from="1715681636364" duration="64000" />
+      <workItem from="1715681704358" duration="2284000" />
+      <workItem from="1715684609807" duration="3000" />
+      <workItem from="1715684625714" duration="2789000" />
+      <workItem from="1715688329467" duration="12262000" />
+      <workItem from="1715762212262" duration="56344000" />
+      <workItem from="1716193251230" duration="3106000" />
+      <workItem from="1716285308580" duration="44045000" />
+      <workItem from="1716485304670" duration="4621000" />
+      <workItem from="1716537320316" duration="27868000" />
+      <workItem from="1716641386341" duration="134000" />
+      <workItem from="1716753993096" duration="6729000" />
+      <workItem from="1716800623636" duration="2046000" />
+      <workItem from="1716803870887" duration="12827000" />
+      <workItem from="1716823904426" duration="33751000" />
+    </task>
+    <task id="LOCAL-00001" summary="ultima versione prima di modificare il calcolo dell'errore sui punti conosciuti">
+      <option name="closed" value="true" />
+      <created>1713176047241</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1713176047241</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Prima versione senza boundary, ancora da ripulire">
+      <option name="closed" value="true" />
+      <created>1713362773763</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1713362773763</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Versione senza boundary funzionante, batch size da sistemare">
+      <option name="closed" value="true" />
+      <created>1713538095055</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1713538095055</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Dimensionalità sistemate per multipli batch, loss ancora da sistemare. Lettura Csv vecchia">
+      <option name="closed" value="true" />
+      <created>1713783869557</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1713783869557</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Lettura CSV completata,visualizzazione downsampling">
+      <option name="closed" value="true" />
+      <created>1714295383729</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1714295383729</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Simply supported edges funzionante">
+      <option name="closed" value="true" />
+      <created>1714323674188</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1714323674188</updated>
+    </task>
+    <task id="LOCAL-00007" summary="nulla">
+      <option name="closed" value="true" />
+      <created>1714375962173</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1714375962173</updated>
+    </task>
+    <task id="LOCAL-00008" summary="Free Boundary funzionante, manca NMSE e devo ridurre il dominio">
+      <option name="closed" value="true" />
+      <created>1714465075579</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1714465075579</updated>
+    </task>
+    <task id="LOCAL-00009" summary="Dataset e dominio ridotti, risultati non migliorati, torno a versione precedente">
+      <option name="closed" value="true" />
+      <created>1714473813114</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1714473813114</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Grid Search">
+      <option name="closed" value="true" />
+      <created>1714637268361</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1714637268361</updated>
+    </task>
+    <task id="LOCAL-00011" summary="Versione con ds, prima di aggiungere secondo csv">
+      <option name="closed" value="true" />
+      <created>1714927142172</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1714927142172</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Modificata la griglia dei punti conosciuti, risultati buoni">
+      <option name="closed" value="true" />
+      <created>1715003255783</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1715003255783</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Ultima versione Prima di passare a plate dimensioni violino">
+      <option name="closed" value="true" />
+      <created>1715247682158</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1715247682158</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Dimensioni cambiate, governing ancora non funzionanate">
+      <option name="closed" value="true" />
+      <created>1715619079534</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1715619079534</updated>
+    </task>
+    <task id="LOCAL-00015" summary="Dimensioni cambiate, governing ancora non funzionanate">
+      <option name="closed" value="true" />
+      <created>1715619914719</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1715619914719</updated>
+    </task>
+    <task id="LOCAL-00016" summary="...">
+      <option name="closed" value="true" />
+      <created>1715687719637</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1715687719637</updated>
+    </task>
+    <task id="LOCAL-00017" summary="...">
+      <option name="closed" value="true" />
+      <created>1716300030522</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1716300030522</updated>
+    </task>
+    <task id="LOCAL-00018" summary="Dimensioni ridotte risolto con batchnorm1d">
+      <option name="closed" value="true" />
+      <created>1716641516419</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1716641516419</updated>
+    </task>
+    <task id="LOCAL-00019" summary="Dimensioni ridotte risolto con batchnorm1d">
+      <option name="closed" value="true" />
+      <created>1716818265152</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1716818265152</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
+    <MESSAGE value="ultima versione prima di modificare il calcolo dell'errore sui punti conosciuti" />
+    <MESSAGE value="Prima versione senza boundary, ancora da ripulire" />
+    <MESSAGE value="Versione senza boundary funzionante, batch size da sistemare" />
+    <MESSAGE value="Dimensionalità sistemate per multipli batch, loss ancora da sistemare. Lettura Csv vecchia" />
+    <MESSAGE value="Lettura CSV completata, visualizzazione downsampling" />
+    <MESSAGE value="Lettura CSV completata,visualizzazione downsampling" />
+    <MESSAGE value="Simply supported edges funzionante" />
+    <MESSAGE value="nulla" />
+    <MESSAGE value="Free Boundary funzionante, manca NMSE e devo ridurre il dominio" />
+    <MESSAGE value="Dataset e dominio ridotti, risultati non migliorati, torno a versione precedente" />
+    <MESSAGE value="Grid Search" />
+    <MESSAGE value="Versione con ds, prima di aggiungere secondo csv" />
+    <MESSAGE value="Modificata la griglia dei punti conosciuti, risultati buoni" />
+    <MESSAGE value="Ultima versione Prima di passare a plate dimensioni violino" />
+    <MESSAGE value="Dimensioni cambiate, governing ancora non funzionanate" />
+    <MESSAGE value="..." />
+    <MESSAGE value="Dimensioni ridotte risolto con batchnorm1d" />
+    <option name="LAST_COMMIT_MESSAGE" value="Dimensioni ridotte risolto con batchnorm1d" />
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/PlateModes$main.coverage" NAME="main Coverage Results" MODIFIED="1716978761461" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/PlateModes$prove.coverage" NAME="prove Coverage Results" MODIFIED="1713727872362" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/PlateModes$visualization.coverage" NAME="visualization Coverage Results" MODIFIED="1716799751723" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/PlateModes$dataSet.coverage" NAME="dataSet Coverage Results" MODIFIED="1714989266788" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/PlateModes$modules.coverage" NAME="modules Coverage Results" MODIFIED="1716038499581" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/PlateModes$gridSearch.coverage" NAME="gridSearch Coverage Results" MODIFIED="1716832204747" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+  </component>
+</project>
