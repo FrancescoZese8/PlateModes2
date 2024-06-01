@@ -3,8 +3,8 @@ import main
 
 def gridSearch_Relobralo():
     # tmps = [10, 0.1, 0.00001]
-    rhos = [0.1, 0.3, 0.5, 0.7, 0.99, ]
-    alphas = [0.1, 0.99]
+    rhos = [0.1, 0.5, 0.99]
+    alphas = [0.1, 0.5, 0.99]
     best_NMSE = 10e5
     best_tmp = 0
     best_rho = 0

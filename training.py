@@ -86,11 +86,10 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
                         if free_edges:
                             tqdm.write("Epoch %d, Total loss %0.3e, L_f %0.3e, "
                                        "L_t %0.3e,"
-                                       "iteration time %0.6f, Lam_f = %0.3f, lam_t = %0.3f, lr: %.3e"
+                                       "iteration time %0.6f, lr: %.3e"
                                        % (
                                         epoch, l_u_met, metric_result['L_f'],
                                         metric_result['L_t'], time.time() - start_time,
-                                        lambda_results['L_f'], lambda_results['L_t'],
                                         current_lr))
                         else:
                             if relo:

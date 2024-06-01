@@ -140,7 +140,7 @@ class KirchhoffDataset(Dataset):
         # enumerate(zip(x.tolist(), y.tolist()))]
         # known_disps = torch.tensor(known_disps).to(self.device)
         f = (dudxxxx + 2 * dudxxyy + dudyyyy -
-             (self.den * self.T * (self.omega ** 2)) / self.D * u)/10
+             (self.den * self.T * (self.omega ** 2)) / self.D * u)
 
         L_f = f ** 2
         L_t = err_t ** 2
