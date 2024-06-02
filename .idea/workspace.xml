@@ -4,16 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="462bea2a-b01e-475e-9689-7b6f29a58050" name="Changes" comment="BatchNorm per 10x10">
-      <change beforePath="$PROJECT_DIR$/.idea/PlateModes.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/PlateModes.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/deployment.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+    <list default="true" id="462bea2a-b01e-475e-9689-7b6f29a58050" name="Changes" comment="Random points sembra funzionare">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/dataSet.py" beforeDir="false" afterPath="$PROJECT_DIR$/dataSet.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gridSearch.py" beforeDir="false" afterPath="$PROJECT_DIR$/gridSearch.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/loss.py" beforeDir="false" afterPath="$PROJECT_DIR$/loss.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/training.py" beforeDir="false" afterPath="$PROJECT_DIR$/training.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/visualization.py" beforeDir="false" afterPath="$PROJECT_DIR$/visualization.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -130,6 +129,7 @@
       <workItem from="1716800623636" duration="2046000" />
       <workItem from="1716803870887" duration="12827000" />
       <workItem from="1716823904426" duration="33751000" />
+      <workItem from="1717254197023" duration="17668000" />
     </task>
     <task id="LOCAL-00001" summary="ultima versione prima di modificare il calcolo dell'errore sui punti conosciuti">
       <option name="closed" value="true" />
@@ -283,7 +283,15 @@
       <option name="project" value="LOCAL" />
       <updated>1716818265152</updated>
     </task>
-    <option name="localTasksCounter" value="20" />
+    <task id="LOCAL-00020" summary="Random points sembra funzionare">
+      <option name="closed" value="true" />
+      <created>1717233919471</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1717233919471</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -320,14 +328,15 @@
     <MESSAGE value="..." />
     <MESSAGE value="Dimensioni ridotte risolto con batchnorm1d" />
     <MESSAGE value="BatchNorm per 10x10" />
-    <option name="LAST_COMMIT_MESSAGE" value="BatchNorm per 10x10" />
+    <MESSAGE value="Random points sembra funzionare" />
+    <option name="LAST_COMMIT_MESSAGE" value="Random points sembra funzionare" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/PlateModes$main.coverage" NAME="main Coverage Results" MODIFIED="1717232953087" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/PlateModes$main.coverage" NAME="main Coverage Results" MODIFIED="1717323119178" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/PlateModes$prove.coverage" NAME="prove Coverage Results" MODIFIED="1713727872362" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/PlateModes$visualization.coverage" NAME="visualization Coverage Results" MODIFIED="1716799751723" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/PlateModes$dataSet.coverage" NAME="dataSet Coverage Results" MODIFIED="1714989266788" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/PlateModes$modules.coverage" NAME="modules Coverage Results" MODIFIED="1716038499581" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/PlateModes$gridSearch.coverage" NAME="gridSearch Coverage Results" MODIFIED="1717020827438" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/PlateModes$gridSearch.coverage" NAME="gridSearch Coverage Results" MODIFIED="1717283057034" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

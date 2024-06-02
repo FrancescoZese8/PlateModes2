@@ -169,6 +169,7 @@ class ReLoBRaLoLambdaMetric(nn.Module):
         self.L_b0_lambda_mean.assign(0.0)
         self.L_b2_lambda_mean.assign(0.0)
         self.L_t_lambda_mean.assign(0.0)
+        self.L_m_lambda_mean.assign(0.0)
 
     def result(self):
         return {'L_f': self.L_f_lambda_mean.data.data,

@@ -8,10 +8,11 @@ import pandas as pd
 import visualization
 import numpy as np
 
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 120
+num_epochs = 250
 n_step = 50
 batch_size = 1
 total_length = 1
@@ -20,8 +21,8 @@ batch_size_domain = 1000
 num_hidden_layers = 2
 hidden_features = 32
 temperature = 10e-05
-rho = 0.5  # 0.99, 0.5, 0.35 da esplorare tra 0.35 e 0.5
-alpha = 0.1  # 0.9, 0.1, 0.1 da esplorare tra 0.1 e 0.5
+rho = 0.1  # 0.99, 0.5, 0.35 da esplorare tra 0.35 e 0.5
+alpha = 0.99  # 0.9, 0.1, 0.1 da esplorare tra 0.1 e 0.5
 
 steps_til_summary = 10
 opt_model = 'silu'  # mish
@@ -33,27 +34,30 @@ max_epochs_without_improvement = 50
 free_edges = True
 color = 'viridis'  # bwr
 
+n_d = 2  #
 #W, H, T, E, nue, den = 0.6, 0.6, 0.005, 10e6, 0.28, 420
-W, H, T, E, nue, den = 10, 10, 0.2, 0.7e5, 0.35, 2700
+W, H, T, E, nue, den = 0.35, 0.6, 0.005, 10e6, 0.28, 420
+#W, H, T, E, nue, den = 10, 10, 0.2, 0.7e5, 0.35, 2700
+W_p, H_p = W, H
 #W, H, scaling_factor = dataSet.scale_to_range(W, H, 1, 10)
-scaling_factor = 1
+W, H, scaling_factor = dataSet.scale_to_target(W, H, 12, n_d)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
 eigen_mode = 22
 # omega = 0.078311 * 2 * torch.pi
-omega = 0.074002 * 2 * torch.pi
+omega = 24.047 * 2 * torch.pi
 omega = omega / scaling_factor ** 2
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 
-# df = pd.read_csv('ViolinPlateFOD.csv', sep=';')
+df = pd.read_csv('ViolinPlateFOD.csv', sep=';')
 #df = pd.read_csv('SquarePlateFOD.csv', sep=';')
-df = pd.read_csv('FieldOfDisplacement.csv', sep=';')
+#df = pd.read_csv('FieldOfDisplacement.csv', sep=';')
 df_numeric = df.apply(pd.to_numeric, errors='coerce')
-# n_samp_x, n_samp_y = 35, 60
+n_samp_x, n_samp_y = 35, 60
 #n_samp_x, n_samp_y = 60, 60
-n_samp_x, n_samp_y = 100, 100
-n_d = 2  #
+#n_samp_x, n_samp_y = 100, 100
+
 
 sample_step = W / n_samp_x
 if H / n_samp_y != sample_step:
@@ -84,15 +88,17 @@ for i in range(n_samp_y):
 # sampled_points = [x + 5 for x in [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]]  # off
 # sampled_points = [x * 10 for x in [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]]  # norm
 
-'''x_t = []
+x_t = []
 y_t = []
+x_s = []
+y_s = []
+
+'''
 for y in sampled_points_y:
     for x in sampled_points_x:
         x_t.append(x)
         y_t.append(y)'''
 
-x_t = []
-y_t = []
 
 '''for y in sampled_points:
     for x in sampled_points:
@@ -100,7 +106,7 @@ y_t = []
         y_t.append(y)'''
 
 num_known_points = 25
-min_distance = 1.5#
+min_distance = 1#
 
 
 def euclidean_distance(x1, y1, x2, y2):
@@ -114,6 +120,21 @@ for i in range(num_known_points):
         if all(euclidean_distance(new_x, new_y, x_t[j], y_t[j]) >= min_distance for j in range(len(x_t))):
             x_t.append(new_x)
             y_t.append(new_y)
+            # Aggiungere il punto simmetrico rispetto all'asse y centrale
+            sym_x_y = x_p[(rand_p - rand_p % n_samp_x) + (n_samp_x - rand_p % n_samp_x - 1)]
+            x_s.append(sym_x_y)
+            y_s.append(new_y)
+
+            # Aggiungere il punto simmetrico rispetto all'asse x centrale
+            sym_y_x = y_p[(rand_p % n_samp_x) + (n_samp_y - 1 - (rand_p // n_samp_x)) * n_samp_x]
+            x_s.append(new_x)
+            y_s.append(sym_y_x)
+
+            # Aggiungere il punto simmetrico rispetto al centro della piastra
+            sym_x_central = sym_x_y
+            sym_y_central = sym_y_x
+            x_s.append(sym_x_central)
+            y_s.append(sym_y_central)
             break
 
 # x_t = x_p
@@ -133,12 +154,12 @@ known_disp_map = dict(zip(zip(x_t, y_t), known_disp))
 known_disp = torch.tensor(known_disp)
 
 visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode, image_width=n_samp_x,
-                             image_height=n_samp_y, H=H, W=W, sample_step=sample_step, dist_bound=dist_bound, n_d=n_d,
+                             image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, sample_step=sample_step, dist_bound=dist_bound, n_d=n_d,
                              color=color)
 
 plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=total_length, den=den,
                                  omega=omega, batch_size_domain=batch_size_domain, known_disp=known_disp,
-                                 full_known_disp=full_known_disp, x_t=x_t, y_t=y_t, max_norm=max_norm,
+                                 full_known_disp=full_known_disp, x_t=x_t, y_t=y_t, x_s=x_s, y_s=y_s, max_norm=max_norm,
                                  free_edges=free_edges, device=device, sample_step=sample_step, dist_bound=dist_bound,
                                  n_samp_x=n_samp_x, n_samp_y=n_samp_y)
 
@@ -167,8 +188,9 @@ training.train(model=model, train_dataloader=data_loader, epochs=num_epochs, n_s
 model.eval()
 
 NMSE = visualization.visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device, image_width=n_samp_x,
-                                          image_height=n_samp_y, H=H, W=W, model=model, sample_step=sample_step,
+                                          image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, model=model, sample_step=sample_step,
                                           dist_bound=dist_bound, color=color)
 print('NMSE: ', NMSE)
 
 visualization.visualise_loss(free_edges, metric_lam, history_loss, history_lambda)
+
