@@ -21,7 +21,7 @@ def compute_derivatives(x, y, u):
 
     dudxxx = gradient(dudxx, x)
     dudxxy = gradient(dudxx, y)
-    dudyyy = gradient(dudy, y)
+    dudyyy = gradient(dudyy, y)
 
     dudxxxx = gradient(dudxxx, x)
     dudxxyy = gradient(dudxxy, y)
@@ -37,28 +37,13 @@ def compute_moments(D, nue, dudxx, dudyy):
     return mx, my
 
 
-'''def scale_to_range(W, H, min_value, max_value):
-    scaling_factor = 1
-
-    while max(W, H) < min_value or max(W, H) > max_value:
-        if max(W, H) < min_value:
-            W *= 10
-            H *= 10
-            scaling_factor *= 10
-        elif max(W, H) > max_value:
-            W /= 10
-            H /= 10
-            scaling_factor /= 10
-
-    return W, H, scaling_factor'''
-
-
 def scale_to_target(W, H, target, n_d):
     scaling_factor = round(target/max(W, H), 2)
     W = round(W * scaling_factor, n_d)
     H = round(H * scaling_factor, n_d)
 
     return W, H, scaling_factor
+
 
 class KirchhoffDataset(Dataset):
 
@@ -102,14 +87,14 @@ class KirchhoffDataset(Dataset):
 
     def training_batch(self):
 
-        # x_p = np.arange(self.dist_bound, self.W + self.dist_bound, self.sample_step)
-        # y_p = np.arange(self.dist_bound, self.H + self.dist_bound, self.sample_step)
-        # x_index = np.random.randint(0, self.n_samp_x, size=self.batch_size_domain)
-        # y_index = np.random.randint(0, self.n_samp_y, size=self.batch_size_domain)
-        # x_random = torch.tensor(x_p[x_index], dtype=torch.float)
-        # y_random = torch.tensor(y_p[y_index], dtype=torch.float)
-        x_random = torch.rand((self.batch_size_domain,)) * self.W
-        y_random = torch.rand((self.batch_size_domain,)) * self.H
+        x_p = np.arange(self.dist_bound, self.W + self.dist_bound, self.sample_step)
+        y_p = np.arange(self.dist_bound, self.H + self.dist_bound, self.sample_step)
+        x_index = np.random.randint(0, self.n_samp_x, size=self.batch_size_domain)
+        y_index = np.random.randint(0, self.n_samp_y, size=self.batch_size_domain)
+        x_random = torch.tensor(x_p[x_index], dtype=torch.float)
+        y_random = torch.tensor(y_p[y_index], dtype=torch.float)
+        # x_random = torch.rand((self.batch_size_domain,)) * self.W
+        # y_random = torch.rand((self.batch_size_domain,)) * self.H
 
         x = torch.cat((self.x_t, self.x_s, x_random), dim=0)
         y = torch.cat((self.y_t, self.y_s, y_random), dim=0)
@@ -187,4 +172,4 @@ class KirchhoffDataset(Dataset):
                 return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_u': L_u, 'L_t': L_t}
             return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_t': L_t}
         else:
-            return {'L_f': L_f, 'L_t': L_t, 'L_m': L_m}
+            return {'L_f': L_f, 'L_t': L_t}

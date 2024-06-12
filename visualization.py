@@ -7,7 +7,7 @@ from matplotlib.colors import Normalize
 
 
 def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode, image_width,
-                   image_height, H, W, H_p, W_p, sample_step, dist_bound, n_d, color):
+                   image_height, H, W, H_p, W_p, sample_step, dist_bound, n_d, size_norm, color):
     known_disps = [known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for index, (i, j) in
                    enumerate(zip(x_p, y_p))]
     kdp = np.reshape(known_disps, (image_height, image_width))
@@ -23,6 +23,8 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
     ax3d_1.set_xlabel('X')
     ax3d_1.set_ylabel('Y')
     ax3d_1.set_title('Real Displacement mode: {}'.format(eigen_mode))
+
+    ax3d_1.text2D(0.05, 0.95, 'Size_norm: {}'.format(size_norm), transform=ax3d_1.transAxes)
 
 
     # Secondo subplot
@@ -96,10 +98,12 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
     axes[0].set_ylabel('Y')
     axes[0].set_title('Predicted Displacement mode: {}'.format(eigen_mode))
 
-    im2 = axes[1].imshow((u_pred - u_real) ** 2, extent=(0, W_p, 0, H_p), cmap=color)
+    im2 = axes[1].imshow((u_pred - u_real) ** 2, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
     axes[1].set_xlabel('X')
     axes[1].set_ylabel('Y')
     axes[1].set_title('Squared Error Displacement: {}'.format(NMSE))
+
+    plt.show()
 
     fig.colorbar(im1, ax=axes[0])
     fig.colorbar(im2, ax=axes[1])
@@ -132,7 +136,7 @@ def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
     fig = plt.figure(figsize=(6, 4.5), dpi=100)
     plt.plot(torch.log(torch.tensor(history_loss['L_f'])), label='$L_f$ governing equation')
     plt.plot(torch.log(torch.tensor(history_loss['L_t'])), label='$L_t$ Known points')
-    plt.plot(torch.log(torch.tensor(history_loss['L_m'])), label='$L_m$ Simmetry points')
+    #plt.plot(torch.log(torch.tensor(history_loss['L_m'])), label='$L_m$ Simmetry points')
     if not free_edges:
         plt.plot(torch.log(torch.tensor(history_loss['L_b0'])), label='$L_{b0}$ Dirichlet boundaries')
         plt.plot(torch.log(torch.tensor(history_loss['L_b2'])), label='$L_{b2}$ Moment boundaries')
@@ -148,7 +152,7 @@ def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
         fig2 = plt.figure(figsize=(6, 4.5), dpi=100)
         plt.plot(history_lambda['L_f_lambda'], label='$\lambda_f$ governing equation')
         plt.plot(history_lambda['L_t_lambda'], label='$\lambda_{t}$ Known points')
-        plt.plot(history_lambda['L_m_lambda'], label='$\lambda_{m}$ Simmetry points')
+        #plt.plot(history_lambda['L_m_lambda'], label='$\lambda_{m}$ Simmetry points')
         if not free_edges:
             plt.plot(history_lambda['L_b0_lambda'], label='$\lambda_{b0}$ Dirichlet boundaries')
             plt.plot(history_lambda['L_b2_lambda'], label='$\lambda_{b2}$ Moment boundaries')

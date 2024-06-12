@@ -102,7 +102,7 @@ class KirchhoffMetric(nn.Module):
         self.L_b2_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
         self.L_t_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
         self.L_u_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
-        self.L_m_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
+        #self.L_m_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
 
     def update_state(self, xy, y_pred, losses=None, sample_weight=None):
         xy = xy['coords']
@@ -113,7 +113,7 @@ class KirchhoffMetric(nn.Module):
         if self.free_edges:
             self.L_f_mean.data = torch.mean(compute_loss_dic['L_f'])
             self.L_t_mean.data = torch.mean(compute_loss_dic['L_t'])
-            self.L_m_mean.data = torch.mean(compute_loss_dic['L_m'])
+            #self.L_m_mean.data = torch.mean(compute_loss_dic['L_m'])
         else:
             self.L_f_mean.data = torch.mean(compute_loss_dic['L_f'])
             self.L_b0_mean.data = torch.mean(compute_loss_dic['L_b0'])
@@ -127,15 +127,15 @@ class KirchhoffMetric(nn.Module):
         self.L_b2_mean.data = torch.zeros(1)
         self.L_u_mean.data = torch.zeros(1)
         self.L_t_mean.data = torch.zeros(1)
-        self.L_m_mean.data = torch.zeros(1)
+        #self.L_m_mean.data = torch.zeros(1)
 
     def result(self):
         return {'L_f': self.L_f_mean.item(),  # .mean().item(),
                 'L_b0': self.L_b0_mean.item(),
                 'L_b2': self.L_b2_mean.item(),
                 'L_u': self.L_u_mean.item(),
-                'L_t': self.L_t_mean.item(),
-                'L_m': self.L_m_mean.item()}
+                'L_t': self.L_t_mean.item()}
+                #'L_m': self.L_m_mean.item()}
 
 
 
@@ -149,14 +149,14 @@ class ReLoBRaLoLambdaMetric(nn.Module):
         self.L_b0_lambda_mean = CustomVariable(0.0, trainable=False)
         self.L_b2_lambda_mean = CustomVariable(0.0, trainable=False)
         self.L_t_lambda_mean = CustomVariable(0.0, trainable=False)
-        self.L_m_lambda_mean = CustomVariable(0.0, trainable=False)
+        #self.L_m_lambda_mean = CustomVariable(0.0, trainable=False)
 
     def update_state(self, xy, y_pred, sample_weight=None):
         if self.free_edges:
-            L_f_lambda, L_t_lambda, L_m_lambda = self.loss.lambdas
+            L_f_lambda, L_t_lambda= self.loss.lambdas  # L_m_lambda
             self.L_f_lambda_mean.assign(L_f_lambda.data.data.item())
             self.L_t_lambda_mean.assign(L_t_lambda.data.item())
-            self.L_m_lambda_mean.assign(L_m_lambda.data.item())
+            #self.L_m_lambda_mean.assign(L_m_lambda.data.item())
         else:
             L_f_lambda, L_b0_lambda, L_b2_lambda, L_t_lambda = self.loss.lambdas
             self.L_f_lambda_mean.assign(L_f_lambda.data.data.item())
@@ -169,11 +169,11 @@ class ReLoBRaLoLambdaMetric(nn.Module):
         self.L_b0_lambda_mean.assign(0.0)
         self.L_b2_lambda_mean.assign(0.0)
         self.L_t_lambda_mean.assign(0.0)
-        self.L_m_lambda_mean.assign(0.0)
+        #self.L_m_lambda_mean.assign(0.0)
 
     def result(self):
         return {'L_f': self.L_f_lambda_mean.data.data,
                 'L_b0': self.L_b0_lambda_mean.data.data,
                 'L_b2': self.L_b2_lambda_mean.data.data,
-                'L_t': self.L_t_lambda_mean.data.data,
-                'L_m': self.L_m_lambda_mean.data.data}
+                'L_t': self.L_t_lambda_mean.data.data}
+                #'L_m': self.L_m_lambda_mean.data.data}
