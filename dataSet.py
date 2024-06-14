@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from torch.utils.data import Dataset
+import random
 
 EPS = 1e-6
 
@@ -47,8 +48,8 @@ def scale_to_target(W, H, target, n_d):
 
 class KirchhoffDataset(Dataset):
 
-    def __init__(self, T, nue, E, D, H, W, total_length, den: float, omega: float, batch_size_domain, known_disp,
-                 full_known_disp, x_t, y_t, x_s, y_s, max_norm, free_edges, device, sample_step, dist_bound, n_samp_x,
+    def __init__(self, T, nue, E, D, H, W, total_length, den: float, omegas, batch_size_domain, known_disp_dict,
+                 x_t, y_t, max_norm, free_edges, device, sample_step, dist_bound, n_samp_x,
                  n_samp_y):
         self.T = T
         self.nue = nue
@@ -58,14 +59,11 @@ class KirchhoffDataset(Dataset):
         self.W = W
         self.total_length = total_length
         self.den = den
-        self.omega = omega
+        self.omegas = torch.tensor(omegas, dtype=torch.float32)
         self.batch_size_domain = batch_size_domain
-        self.known_disp = known_disp.to(device)
-        self.full_known_disp = full_known_disp
+        self.known_disp_dict = known_disp_dict
         self.x_t = torch.tensor(x_t, dtype=torch.float32)
         self.y_t = torch.tensor(y_t, dtype=torch.float32)
-        self.x_s = torch.tensor(x_s, dtype=torch.float32)
-        self.y_s = torch.tensor(y_s, dtype=torch.float32)
         self.max_norm = max_norm
         self.free_edges = free_edges
         self.device = device
@@ -76,11 +74,11 @@ class KirchhoffDataset(Dataset):
         self.n_samp_y = n_samp_y
 
     def __getitem__(self, item):
-        x, y = self.training_batch()
+        x, y, omega = self.training_batch()
         x.requires_grad_(True)
         y.requires_grad_(True)
         xy = torch.cat([x, y], dim=-1)
-        return {'coords': xy}
+        return {'coords': xy, 'omega': omega}
 
     def __len__(self):
         return self.total_length
@@ -96,20 +94,25 @@ class KirchhoffDataset(Dataset):
         # x_random = torch.rand((self.batch_size_domain,)) * self.W
         # y_random = torch.rand((self.batch_size_domain,)) * self.H
 
-        x = torch.cat((self.x_t, self.x_s, x_random), dim=0)
-        y = torch.cat((self.y_t, self.y_s, y_random), dim=0)
+        x = torch.cat((self.x_t, x_random), dim=0)
+        y = torch.cat((self.y_t, y_random), dim=0)
         x = x[..., None]
         y = y[..., None]
         x = x.to(self.device)  # CUDA
         y = y.to(self.device)
 
-        return x, y
+        #print('OMEGAS_dataset: ', self.omegas)
+        omega_index = torch.randint(0, len(self.omegas), (1,)).item()
+        omega = self.omegas[omega_index]
+        omega = omega.to(self.device)  # CUDA
+        #print('OMEGA_dataset: ', omega)
 
-    def compute_loss(self, x, y, preds, eval=False):
+        return x, y, omega
+
+    def compute_loss(self, x, y, omega, preds, eval=False):
         # governing equation loss
         # u = np.squeeze(preds[:, len(self.x_t):, 0:1])
         u_t = np.squeeze(preds[:len(self.x_t), 0:1])
-        u_s = np.squeeze(preds[len(self.x_t):len(self.x_s) + len(self.x_t), 0:1])
         x = np.squeeze(x)
         y = np.squeeze(y)
         u = np.squeeze(preds[:, 0:1])
@@ -124,25 +127,19 @@ class KirchhoffDataset(Dataset):
         dudyyyy = np.squeeze(preds[:, 4:5])
         dudxxyy = np.squeeze(preds[:, 5:6])
 
-        err_t = self.known_disp - u_t
+        #print('OMEGA_item_dataset: ', omega.item())
+        #print('KNOWN_DISP_DICT: ', self.known_disp_dict)
+        err_t = self.known_disp_dict[round(omega.item(), 8)] - u_t
         # print('u_t: ', u_t.shape, 'err_t: ', err_t.shape, 'kd: ', self.known_disp.shape)
-
-        u_t_abs = torch.abs(u_t)
-        k_d_abs = torch.abs(self.known_disp)
-        u_s_abs = torch.abs(u_s)
-        err_m = 0
-        for i in range(len(u_t)):
-            err_m = torch.sum(u_t_abs[i] - u_s_abs[i * 3:i * 3 + 3])
 
         # known_disps = [self.known_disp_map.get((round(i, 2), round(j, 2)), u[index]) for index, (i, j) in
         # enumerate(zip(x.tolist(), y.tolist()))]
         # known_disps = torch.tensor(known_disps).to(self.device)
         f = (dudxxxx + 2 * dudxxyy + dudyyyy -
-             (self.den * self.T * (self.omega ** 2)) / self.D * u)
+             (self.den * self.T * (round(omega.item(), 8) ** 2)) / self.D * u)
 
         L_f = f ** 2
         L_t = err_t ** 2
-        L_m = torch.abs(err_m) * 0  # TODO
 
         if not self.free_edges:
             # determine which points are on the boundaries of the domain

@@ -49,7 +49,7 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
                         optim.step(closure)
 
                     model_output = model(model_input)
-                    losses = loss_fn.call(model_output, model_input)
+                    losses = loss_fn.call(model_output, model_input['coords'], model_input['omega'])
 
                     train_loss = 0.
                     for loss_name, loss in losses.items():
@@ -71,12 +71,12 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
 
                         optim.step()
                         if metric_lam is None:
-                            metric.update_state(model_input, model_output)
+                            metric.update_state(model_input['coords'], model_input['omega'], model_output)
                             metric_result = metric.result()
                         else:
-                            metric.update_state(model_input, model_output, losses)
+                            metric.update_state(model_input['coords'], model_input['omega'], model_output, losses)
                             metric_result = metric.result()
-                            metric_lam.update_state(model_input, model_output)
+                            metric_lam.update_state(model_input['coords'], model_input['omega'], model_output)
                             lambda_results = metric_lam.result()
 
                     if not total_steps % steps_til_summary:

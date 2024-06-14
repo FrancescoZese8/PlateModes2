@@ -12,14 +12,14 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 500
+num_epochs = 200
 n_step = 50
 num_known_points = 20
 size_norm = 15
 batch_size = 1
 total_length = 1
 lr = 0.001
-batch_size_domain = 1000
+batch_size_domain = 1
 num_hidden_layers = 2
 hidden_features = 32
 temperature = 0.1  # 10e-05
@@ -35,36 +35,30 @@ relo = True
 max_epochs_without_improvement = 50
 free_edges = True
 color = 'viridis'  # bwr
-
 n_d = 4  #
-# W, H, T, E, nue, den = 0.6, 0.6, 0.005, 10e6, 0.28, 420
-# W, H, T, E, nue, den = 0.35, 0.6, 0.005, 10e6, 0.28, 420
-# W, H, T, E, nue, den = 10, 10, 0.2, 0.7e5, 0.35, 2700
+
 W, H, T, E, nue, den = 0.20, 0.35, 0.005, 10e6, 0.28, 420
 W_p, H_p = W, H
-# W, H, scaling_factor = dataSet.scale_to_range(W, H, 1, 10)
 W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
-eigen_mode = 25
+eigen_mode = [11, 12, 14]
+# eigen_mode = 11
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
          165.3, ]  # ViolinPlateFOD3
-omega = freqs[eigen_mode] * 2 * torch.pi
-print('freq: ', freqs[eigen_mode])
-omega = omega / scaling_factor ** 2
+omegas = []
+for eig in eigen_mode:
+    omegas.append(round(freqs[eig] * 2 * torch.pi / scaling_factor ** 2, 8))
+    print('freq: ', freqs[eig])
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 
 df = pd.read_csv('ViolinPlateFOD3.csv', sep=';')
-# df = pd.read_csv('SquarePlateFOD.csv', sep=';')
-# df = pd.read_csv('FieldOfDisplacement.csv', sep=';')
+
 df_numeric = df.apply(pd.to_numeric, errors='coerce')
 n_samp_x, n_samp_y = 40, 70
-# n_samp_x, n_samp_y = 35, 60
-# n_samp_x, n_samp_y = 60, 60
-# n_samp_x, n_samp_y = 100, 100
 
 sample_step = W / n_samp_x
 if H / n_samp_y != sample_step:
@@ -78,28 +72,8 @@ for i in range(n_samp_y):
         x_p.append(round(j * sample_step + dist_bound, n_d))
         y_p.append(round(i * sample_step + dist_bound, n_d))
 
-# x_p = [x + 5 for x in x_p]  # off
-# y_p = [y + 5 for y in y_p]
-# sampled_points = [0.25, 2.55, 5.05, 7.45, 9.75]
-# sampled_points = [1.35, 3.65, 6.15, 8.55]
-# sampled_points = [7.55]
-# sampled_points = [0.25, 1.35, 2.45, 3.55, 4.65, 5.75]
-
-# sampled_points_x = [0.075, 0.175, 0.275]
-# sampled_points_y = [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]
-# sampled_points_x = [round(point * scaling_factor, n_d) for point in sampled_points_x]
-# sampled_points_y = [round(point * scaling_factor, n_d) for point in sampled_points_y]
-
-# sampled_points = [0.075, 0.185, 0.295, 0.405, 0.515]
-# sampled_points = [round(point * scaling_factor, n_d) for point in sampled_points]
-
-# sampled_points = [x + 5 for x in [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]]  # off
-# sampled_points = [x * 10 for x in [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]]  # norm
-
 x_t = []
 y_t = []
-x_s = []
-y_s = []
 
 '''
 for y in sampled_points_y:
@@ -128,55 +102,49 @@ while i < num_known_points:
         if all(euclidean_distance(new_x, new_y, x_t[j], y_t[j]) >= min_distance for j in range(len(x_t))):
             x_t.append(new_x)
             y_t.append(new_y)
-            # Aggiungere il punto simmetrico rispetto all'asse y centrale
-            sym_x_y = x_p[(rand_p - rand_p % n_samp_x) + (n_samp_x - rand_p % n_samp_x - 1)]
-            x_s.append(sym_x_y)
-            y_s.append(new_y)
-
-            # Aggiungere il punto simmetrico rispetto all'asse x centrale
-            sym_y_x = y_p[(rand_p % n_samp_x) + (n_samp_y - 1 - (rand_p // n_samp_x)) * n_samp_x]
-            x_s.append(new_x)
-            y_s.append(sym_y_x)
-
-            # Aggiungere il punto simmetrico rispetto al centro della piastra
-            sym_x_central = sym_x_y
-            sym_y_central = sym_y_x
-            x_s.append(sym_x_central)
-            y_s.append(sym_y_central)
             i += 1
             break
         attempts += 1
         if attempts >= 100:
-            x_t, y_t, x_s, y_s = [], [], [], []
+            x_t, y_t = [], []
             i = 0
             break
 
 # x_t = x_p
 # y_t = y_p
-
-full_known_disp = torch.tensor(df_numeric.iloc[:, 2:].values)
-full_known_disp = full_known_disp[:, eigen_mode]
-print('Dataset length: ', len(full_known_disp))
-print('x_p length: ', len(x_p))
-min_val = torch.min(full_known_disp)
-max_val = torch.max(full_known_disp)
 max_norm = 1
-full_known_disp = (-1 + 2 * (full_known_disp - min_val) / (max_val - min_val)) * max_norm
-full_known_disp_map = dict(zip(zip(x_p, y_p), full_known_disp))
-known_disp = [full_known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for index, (i, j) in
-              enumerate(zip(x_t, y_t))]
-known_disp_map = dict(zip(zip(x_t, y_t), known_disp))
-known_disp = torch.tensor(known_disp)
+full_known_disp, full_known_disp_map, known_disp, known_disp_map = [], [], [], []
+list_full_known_disp, list_full_known_disp_map, list_known_disp, list_known_disp_map = [], [], [], []
+known_disp_dict = {}
+full_known_disp_csv = torch.tensor(df_numeric.iloc[:, 2:].values)
 
-visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
-                             image_width=n_samp_x,
-                             image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, sample_step=sample_step,
-                             dist_bound=dist_bound, n_d=n_d, size_norm=size_norm,
-                             color=color)
+for i in range(len(eigen_mode)):
+    full_known_disp = full_known_disp_csv[:, eigen_mode[i]]
+    min_val = torch.min(full_known_disp)
+    max_val = torch.max(full_known_disp)
+    full_known_disp = (-1 + 2 * (full_known_disp - min_val) / (max_val - min_val)) * max_norm
+    list_full_known_disp.append(full_known_disp)
+    full_known_disp_map = dict(zip(zip(x_p, y_p), full_known_disp))
+    list_full_known_disp_map.append(full_known_disp_map)
+    known_disp = [full_known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for index, (i, j) in
+                  enumerate(zip(x_t, y_t))]
+    known_disp_map = dict(zip(zip(x_t, y_t), known_disp))
+    known_disp = torch.tensor(known_disp)
+    known_disp = known_disp.to(device)
+    known_disp_dict[omegas[i]] = known_disp
+    list_known_disp_map.append(known_disp_map)
+
+
+    '''visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
+                                 image_width=n_samp_x,
+                                 image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, sample_step=sample_step,
+                                 dist_bound=dist_bound, n_d=n_d, size_norm=size_norm,
+                                 color=color)'''
+#print('OMEGAS_main: ', omegas)
 
 plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=total_length, den=den,
-                                 omega=omega, batch_size_domain=batch_size_domain, known_disp=known_disp,
-                                 full_known_disp=full_known_disp, x_t=x_t, y_t=y_t, x_s=x_s, y_s=y_s,
+                                 omegas=omegas, batch_size_domain=batch_size_domain, known_disp_dict=known_disp_dict,
+                                 x_t=x_t, y_t=y_t,
                                  max_norm=max_norm,
                                  free_edges=free_edges, device=device, sample_step=sample_step,
                                  dist_bound=dist_bound,
@@ -184,7 +152,7 @@ plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=
 
 data_loader = DataLoader(plate, shuffle=True, batch_size=batch_size, pin_memory=False, num_workers=0)
 model = modules.PINNet(num_hidden_layers=num_hidden_layers, hidden_features=hidden_features,
-                       out_features=1, type=opt_model, mode=mode)
+                       in_features=3, out_features=1, type=opt_model, mode=mode)
 model = model.to(device)  # CUDA
 
 history_loss = {'L_f': [], 'L_b0': [], 'L_b2': [], 'L_u': [], 'L_t': [], 'L_m': []}
@@ -204,9 +172,11 @@ training.train(model=model, train_dataloader=data_loader, epochs=num_epochs, n_s
                history_lambda=history_lambda,
                metric=kirchhoff_metric, metric_lam=metric_lam, free_edges=free_edges, clip_grad=clip_grad,
                use_lbfgs=use_lbfgs, max_epochs_without_improvement=max_epochs_without_improvement, relo=relo)
+
 model.eval()
 
-NMSE = visualization.visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device,
+omega_plot = omegas[0]
+NMSE = visualization.visualise_prediction(x_p, y_p, omega_plot, full_known_disp, eigen_mode, max_norm, device,
                                           image_width=n_samp_x,
                                           image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, model=model,
                                           sample_step=sample_step,
@@ -214,4 +184,3 @@ NMSE = visualization.visualise_prediction(x_p, y_p, full_known_disp, eigen_mode,
 print('NMSE: ', NMSE)
 
 visualization.visualise_loss(free_edges, metric_lam, history_loss, history_lambda)
-# return NMSE
