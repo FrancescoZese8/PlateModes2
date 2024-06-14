@@ -16,11 +16,11 @@ class KirchhoffLoss(torch.nn.Module):
         super(KirchhoffLoss, self).__init__()
         self.plate = plate
 
-    def call(self, preds, xy):
+    def call(self, preds, xy, omega):
         xy = xy['coords']
         x, y = xy[:, :, 0], xy[:, :, 1]
         preds = preds['model_out']
-        return self.plate.compute_loss(x, y, preds)
+        return self.plate.compute_loss(x, y, omega, preds)
 
 
 class ReLoBRaLoKirchhoffLoss(KirchhoffLoss):
@@ -37,13 +37,13 @@ class ReLoBRaLoKirchhoffLoss(KirchhoffLoss):
         self.last_losses = [CustomVariable(1., trainable=False) for _ in range(plate.num_loss)]
         self.init_losses = [CustomVariable(1., trainable=False) for _ in range(plate.num_loss)]
 
-    def call(self, preds, xy):
-        xy = xy['coords']
+    def call(self, preds, xy, omega):
+        #xy = xy['coords']
         x, y = xy[:, :, 0], xy[:, :, 1]
         preds = preds['model_out']
         EPS = 1e-7
 
-        losses = {key: torch.mean(loss) for key, loss in self.plate.compute_loss(x, y, preds).items()}
+        losses = {key: torch.mean(loss) for key, loss in self.plate.compute_loss(x, y, omega, preds).items()}
 
         cond1 = torch.tensor(self.call_count.data.item() == 0, dtype=torch.bool)
         cond2 = torch.tensor(self.call_count.data.item() == 1, dtype=torch.bool)
@@ -104,12 +104,12 @@ class KirchhoffMetric(nn.Module):
         self.L_u_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
         #self.L_m_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
 
-    def update_state(self, xy, y_pred, losses=None, sample_weight=None):
-        xy = xy['coords']
+    def update_state(self, xy, omega, y_pred, losses=None, sample_weight=None):
+        #xy = xy['coords']
         y_pred = y_pred['model_out']
         x, y = xy[:, :, 0], xy[:, :, 1]
 
-        compute_loss_dic = self.plate.compute_loss(x, y, y_pred, eval=True)
+        compute_loss_dic = self.plate.compute_loss(x, y, omega, y_pred, eval=True)
         if self.free_edges:
             self.L_f_mean.data = torch.mean(compute_loss_dic['L_f'])
             self.L_t_mean.data = torch.mean(compute_loss_dic['L_t'])
