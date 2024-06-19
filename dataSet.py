@@ -129,14 +129,12 @@ class KirchhoffDataset(Dataset):
 
         #print('OMEGA_item_dataset: ', omega.item())
         #print('KNOWN_DISP_DICT: ', self.known_disp_dict)
-        err_t = self.known_disp_dict[round(omega.item(), 8)] - u_t
-        # print('u_t: ', u_t.shape, 'err_t: ', err_t.shape, 'kd: ', self.known_disp.shape)
+        #print('omega: ', omega.item())
+        #print('u_t: ', self.known_disp_dict[round(omega.item(), 8)].shape)
+        err_t = self.known_disp_dict[round(omega.item(), 6)] - u_t
 
-        # known_disps = [self.known_disp_map.get((round(i, 2), round(j, 2)), u[index]) for index, (i, j) in
-        # enumerate(zip(x.tolist(), y.tolist()))]
-        # known_disps = torch.tensor(known_disps).to(self.device)
         f = (dudxxxx + 2 * dudxxyy + dudyyyy -
-             (self.den * self.T * (round(omega.item(), 8) ** 2)) / self.D * u)
+             (self.den * self.T * (round(omega.item(), 6) ** 2)) / self.D * u)
 
         L_f = f ** 2
         L_t = err_t ** 2

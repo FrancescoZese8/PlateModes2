@@ -12,16 +12,16 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 200
-n_step = 50
-num_known_points = 20
-size_norm = 15
+num_epochs = 150
+n_step = 100
+num_known_points = 50
+size_norm = 10
 batch_size = 1
 total_length = 1
 lr = 0.001
 batch_size_domain = 1
 num_hidden_layers = 2
-hidden_features = 32
+hidden_features = 128
 temperature = 0.1  # 10e-05
 rho = 0.1  # 0.99, 0.5, 0.35, 0.1
 alpha = 0.99  # 0.9, 0.1, 0.1, 0.99
@@ -42,23 +42,24 @@ W_p, H_p = W, H
 W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
-eigen_mode = [11, 12, 14]
-# eigen_mode = 11
+eigen_mode = [11, 12, 13]
+#eigen_mode = [11, 12, 13, 14, 15, 16, 17, 18]
+#eigen_mode = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
          165.3, ]  # ViolinPlateFOD3
 omegas = []
 for eig in eigen_mode:
-    omegas.append(round(freqs[eig] * 2 * torch.pi / scaling_factor ** 2, 8))
+    omegas.append(round(freqs[eig] * 2 * torch.pi / scaling_factor ** 2, 6))
     print('freq: ', freqs[eig])
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 
-df = pd.read_csv('ViolinPlateFOD3.csv', sep=';')
+df = pd.read_csv('ViolinPlateFOD2.csv', sep=';')
 
 df_numeric = df.apply(pd.to_numeric, errors='coerce')
-n_samp_x, n_samp_y = 40, 70
+n_samp_x, n_samp_y = 20, 35
 
 sample_step = W / n_samp_x
 if H / n_samp_y != sample_step:
@@ -86,7 +87,7 @@ for y in sampled_points_y:
         x_t.append(x)
         y_t.append(y)'''
 
-min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 12, n_d)
+min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 5, n_d)
 
 
 def euclidean_distance(x1, y1, x2, y2):
@@ -114,8 +115,7 @@ while i < num_known_points:
 # y_t = y_p
 max_norm = 1
 full_known_disp, full_known_disp_map, known_disp, known_disp_map = [], [], [], []
-list_full_known_disp, list_full_known_disp_map, list_known_disp, list_known_disp_map = [], [], [], []
-known_disp_dict = {}
+known_disp_dict, full_known_disp_dict = {}, {}
 full_known_disp_csv = torch.tensor(df_numeric.iloc[:, 2:].values)
 
 for i in range(len(eigen_mode)):
@@ -123,16 +123,15 @@ for i in range(len(eigen_mode)):
     min_val = torch.min(full_known_disp)
     max_val = torch.max(full_known_disp)
     full_known_disp = (-1 + 2 * (full_known_disp - min_val) / (max_val - min_val)) * max_norm
-    list_full_known_disp.append(full_known_disp)
-    full_known_disp_map = dict(zip(zip(x_p, y_p), full_known_disp))
-    list_full_known_disp_map.append(full_known_disp_map)
+    full_known_disp_map = dict(zip(zip(x_p, y_p), full_known_disp))  # Mappa displcement e coordinate
+    full_known_disp_dict[omegas[i]] = full_known_disp  # Mappa displacement e omega
     known_disp = [full_known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for index, (i, j) in
                   enumerate(zip(x_t, y_t))]
     known_disp_map = dict(zip(zip(x_t, y_t), known_disp))
     known_disp = torch.tensor(known_disp)
     known_disp = known_disp.to(device)
     known_disp_dict[omegas[i]] = known_disp
-    list_known_disp_map.append(known_disp_map)
+    #print('Known disp: ', known_disp_dict[omegas[i]][0])
 
 
     '''visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
@@ -175,8 +174,10 @@ training.train(model=model, train_dataloader=data_loader, epochs=num_epochs, n_s
 
 model.eval()
 
-omega_plot = omegas[0]
-NMSE = visualization.visualise_prediction(x_p, y_p, omega_plot, full_known_disp, eigen_mode, max_norm, device,
+omega_plot_ind = [0, 2]
+omegas_plot = [omegas[i] for i in omega_plot_ind]
+print('op: ', omegas_plot)
+NMSE = visualization.visualise_prediction(x_p, y_p, omegas_plot,  full_known_disp_dict, eigen_mode, max_norm, device,
                                           image_width=n_samp_x,
                                           image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, model=model,
                                           sample_step=sample_step,
