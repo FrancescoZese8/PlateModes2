@@ -8,14 +8,14 @@ import pandas as pd
 import visualization
 import numpy as np
 
-# def main(rho, alpha, tmp):
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 500
+num_epochs = 200
 n_step = 50
 num_known_points = 20
-size_norm = 15
+size_norm = 10
 batch_size = 1
 total_length = 1
 lr = 0.001
@@ -36,17 +36,13 @@ max_epochs_without_improvement = 50
 free_edges = True
 color = 'viridis'  # bwr
 
-n_d = 4  #
-# W, H, T, E, nue, den = 0.6, 0.6, 0.005, 10e6, 0.28, 420
-# W, H, T, E, nue, den = 0.35, 0.6, 0.005, 10e6, 0.28, 420
-# W, H, T, E, nue, den = 10, 10, 0.2, 0.7e5, 0.35, 2700
+n_d = 4
 W, H, T, E, nue, den = 0.20, 0.35, 0.005, 10e6, 0.28, 420
 W_p, H_p = W, H
-# W, H, scaling_factor = dataSet.scale_to_range(W, H, 1, 10)
 W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
-eigen_mode = 25
+eigen_mode = 22
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
@@ -58,13 +54,9 @@ omega = omega / scaling_factor ** 2
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 
 df = pd.read_csv('ViolinPlateFOD3.csv', sep=';')
-# df = pd.read_csv('SquarePlateFOD.csv', sep=';')
-# df = pd.read_csv('FieldOfDisplacement.csv', sep=';')
 df_numeric = df.apply(pd.to_numeric, errors='coerce')
 n_samp_x, n_samp_y = 40, 70
-# n_samp_x, n_samp_y = 35, 60
-# n_samp_x, n_samp_y = 60, 60
-# n_samp_x, n_samp_y = 100, 100
+
 
 sample_step = W / n_samp_x
 if H / n_samp_y != sample_step:
@@ -78,41 +70,12 @@ for i in range(n_samp_y):
         x_p.append(round(j * sample_step + dist_bound, n_d))
         y_p.append(round(i * sample_step + dist_bound, n_d))
 
-# x_p = [x + 5 for x in x_p]  # off
-# y_p = [y + 5 for y in y_p]
-# sampled_points = [0.25, 2.55, 5.05, 7.45, 9.75]
-# sampled_points = [1.35, 3.65, 6.15, 8.55]
-# sampled_points = [7.55]
-# sampled_points = [0.25, 1.35, 2.45, 3.55, 4.65, 5.75]
-
-# sampled_points_x = [0.075, 0.175, 0.275]
-# sampled_points_y = [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]
-# sampled_points_x = [round(point * scaling_factor, n_d) for point in sampled_points_x]
-# sampled_points_y = [round(point * scaling_factor, n_d) for point in sampled_points_y]
-
-# sampled_points = [0.075, 0.185, 0.295, 0.405, 0.515]
-# sampled_points = [round(point * scaling_factor, n_d) for point in sampled_points]
-
-# sampled_points = [x + 5 for x in [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]]  # off
-# sampled_points = [x * 10 for x in [0.025, 0.135, 0.245, 0.355, 0.465, 0.575]]  # norm
 
 x_t = []
 y_t = []
-x_s = []
-y_s = []
 
-'''
-for y in sampled_points_y:
-    for x in sampled_points_x:
-        x_t.append(x)
-        y_t.append(y)'''
 
-'''for y in sampled_points:
-    for x in sampled_points:
-        x_t.append(x)
-        y_t.append(y)'''
-
-min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 12, n_d)
+min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 10, n_d)
 
 
 def euclidean_distance(x1, y1, x2, y2):
@@ -128,26 +91,11 @@ while i < num_known_points:
         if all(euclidean_distance(new_x, new_y, x_t[j], y_t[j]) >= min_distance for j in range(len(x_t))):
             x_t.append(new_x)
             y_t.append(new_y)
-            # Aggiungere il punto simmetrico rispetto all'asse y centrale
-            sym_x_y = x_p[(rand_p - rand_p % n_samp_x) + (n_samp_x - rand_p % n_samp_x - 1)]
-            x_s.append(sym_x_y)
-            y_s.append(new_y)
-
-            # Aggiungere il punto simmetrico rispetto all'asse x centrale
-            sym_y_x = y_p[(rand_p % n_samp_x) + (n_samp_y - 1 - (rand_p // n_samp_x)) * n_samp_x]
-            x_s.append(new_x)
-            y_s.append(sym_y_x)
-
-            # Aggiungere il punto simmetrico rispetto al centro della piastra
-            sym_x_central = sym_x_y
-            sym_y_central = sym_y_x
-            x_s.append(sym_x_central)
-            y_s.append(sym_y_central)
             i += 1
             break
         attempts += 1
         if attempts >= 100:
-            x_t, y_t, x_s, y_s = [], [], [], []
+            x_t, y_t = [], []
             i = 0
             break
 
@@ -176,7 +124,7 @@ visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y
 
 plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=total_length, den=den,
                                  omega=omega, batch_size_domain=batch_size_domain, known_disp=known_disp,
-                                 full_known_disp=full_known_disp, x_t=x_t, y_t=y_t, x_s=x_s, y_s=y_s,
+                                 full_known_disp=full_known_disp, x_t=x_t, y_t=y_t,
                                  max_norm=max_norm,
                                  free_edges=free_edges, device=device, sample_step=sample_step,
                                  dist_bound=dist_bound,
@@ -214,4 +162,3 @@ NMSE = visualization.visualise_prediction(x_p, y_p, full_known_disp, eigen_mode,
 print('NMSE: ', NMSE)
 
 visualization.visualise_loss(free_edges, metric_lam, history_loss, history_lambda)
-# return NMSE
