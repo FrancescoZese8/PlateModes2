@@ -106,6 +106,8 @@ class KirchhoffDataset(Dataset):
     def compute_loss(self, x, y, preds, eval=False):
         # governing equation loss
         u_t = np.squeeze(preds[:len(self.x_t), 0:1])
+        #print('u_t ', u_t)
+        #print('preds ', preds)
         x = np.squeeze(x)
         y = np.squeeze(y)
         u = np.squeeze(preds[:, 0:1])
