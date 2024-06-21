@@ -12,18 +12,18 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 150
-n_step = 100
-num_known_points = 50
+num_epochs = 500
+n_step = 50
+num_known_points = 20
 size_norm = 10
 batch_size = 1
 total_length = 1
 lr = 0.001
-batch_size_domain = 1
+batch_size_domain = 5000
 num_hidden_layers = 2
-hidden_features = 128
+hidden_features = 32
 temperature = 0.1  # 10e-05
-rho = 0.1  # 0.99, 0.5, 0.35, 0.1
+rho = 0.9  # 0.99, 0.5, 0.35, 0.1
 alpha = 0.99  # 0.9, 0.1, 0.1, 0.99
 
 steps_til_summary = 10
@@ -42,9 +42,10 @@ W_p, H_p = W, H
 W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
-eigen_mode = [11, 12, 13]
+eigen_mode = [6, 7]
 #eigen_mode = [11, 12, 13, 14, 15, 16, 17, 18]
-#eigen_mode = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30]
+#eigen_mode = [6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]
+
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
@@ -87,7 +88,7 @@ for y in sampled_points_y:
         x_t.append(x)
         y_t.append(y)'''
 
-min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 5, n_d)
+min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 2, n_d)
 
 
 def euclidean_distance(x1, y1, x2, y2):
@@ -114,7 +115,7 @@ while i < num_known_points:
 # x_t = x_p
 # y_t = y_p
 max_norm = 1
-full_known_disp, full_known_disp_map, known_disp, known_disp_map = [], [], [], []
+full_known_disp, full_known_disp_map, known_disp, known_disp_map, known_disp_concatenate = [], [], [], [], []
 known_disp_dict, full_known_disp_dict = {}, {}
 full_known_disp_csv = torch.tensor(df_numeric.iloc[:, 2:].values)
 
@@ -130,7 +131,8 @@ for i in range(len(eigen_mode)):
     known_disp_map = dict(zip(zip(x_t, y_t), known_disp))
     known_disp = torch.tensor(known_disp)
     known_disp = known_disp.to(device)
-    known_disp_dict[omegas[i]] = known_disp
+    #known_disp_dict[omegas[i]] = known_disp
+    known_disp_concatenate.append(known_disp)
     #print('Known disp: ', known_disp_dict[omegas[i]][0])
 
 
@@ -140,9 +142,11 @@ for i in range(len(eigen_mode)):
                                  dist_bound=dist_bound, n_d=n_d, size_norm=size_norm,
                                  color=color)'''
 #print('OMEGAS_main: ', omegas)
+known_disp_concatenate = torch.cat(known_disp_concatenate, dim=0)
 
 plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=total_length, den=den,
-                                 omegas=omegas, batch_size_domain=batch_size_domain, known_disp_dict=known_disp_dict,
+                                 omegas=omegas, batch_size_domain=batch_size_domain,
+                                 known_disp_concatenate=known_disp_concatenate,
                                  x_t=x_t, y_t=y_t,
                                  max_norm=max_norm,
                                  free_edges=free_edges, device=device, sample_step=sample_step,
@@ -174,7 +178,7 @@ training.train(model=model, train_dataloader=data_loader, epochs=num_epochs, n_s
 
 model.eval()
 
-omega_plot_ind = [0, 2]
+omega_plot_ind = [0, 1]
 omegas_plot = [omegas[i] for i in omega_plot_ind]
 print('op: ', omegas_plot)
 NMSE = visualization.visualise_prediction(x_p, y_p, omegas_plot,  full_known_disp_dict, eigen_mode, max_norm, device,

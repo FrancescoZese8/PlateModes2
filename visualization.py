@@ -63,9 +63,10 @@ def visualise_prediction(x_p, y_p, omegas_plot, full_known_disp_dict, eigen_mode
     y = y_p.to(device)
     for i in range(len(omegas_plot)):
         omega_plot = omegas_plot[i]
+        omega_plot = torch.full((len(x_p),), omega_plot)
         omega_plot = omega_plot[None]
-        print('omega_plot: ', omega_plot)
-        #print('x_p: ', x_p.shape)
+        print('omega_plot: ', omega_plot.shape)
+        print('x_p: ', x_p.shape)
         omega_plot = omega_plot.to(device)
 
         c = {'coords': torch.cat([x, y], dim=-1).float(), 'omega': omega_plot}
@@ -73,9 +74,9 @@ def visualise_prediction(x_p, y_p, omegas_plot, full_known_disp_dict, eigen_mode
         u_pred, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = (
             pred[:, 0:1], pred[:, 1:2], pred[:, 2:3], pred[:, 3:4], pred[:, 4:5], pred[:, 5:6]
         )
-        u_real = full_known_disp_dict[round(omega_plot.item(), 6)].numpy().reshape(image_height, image_width)
+        #u_real = full_known_disp_dict[round(omega_plot.item(), 6)].numpy().reshape(image_height, image_width)  # TODO
         u_pred = u_pred.cpu().detach().numpy().reshape(image_height, image_width)  # CUDA
-        NMSE = round((np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2), 5)
+        #NMSE = round((np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2), 5)  # TODO
 
         # dudy = dudyyyy.cpu().detach().numpy().reshape(image_height, image_width)
         # dudx = dudxxxx.cpu().detach().numpy().reshape(image_height, image_width)
@@ -95,8 +96,8 @@ def visualise_prediction(x_p, y_p, omegas_plot, full_known_disp_dict, eigen_mode
         # Mostra il primo plot
         plt.show()
 
-        # Secondo plot (subplot con due immagini)
-        fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
+        # Secondo plot (subplot con due immagini)  # TODO
+        '''fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))  
 
         im1 = axes[0].imshow(u_pred, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
         axes[0].set_xlabel('X')
@@ -114,7 +115,7 @@ def visualise_prediction(x_p, y_p, omegas_plot, full_known_disp_dict, eigen_mode
         fig.colorbar(im2, ax=axes[1])
 
         plt.tight_layout()
-        plt.show()
+        plt.show()'''
 
         '''# Plot di du
         plt.figure(figsize=(8, 6))
@@ -134,7 +135,7 @@ def visualise_prediction(x_p, y_p, omegas_plot, full_known_disp_dict, eigen_mode
         plt.colorbar(label='Increment')
         plt.show()'''
 
-    return NMSE
+    #return NMSE  # TODO
 
 
 def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
