@@ -4,14 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="462bea2a-b01e-475e-9689-7b6f29a58050" name="Changes" comment="Prima bozza su 3 freq, non funzionante">
-      <change beforePath="$PROJECT_DIR$/.idea/deployment.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+    <list default="true" id="462bea2a-b01e-475e-9689-7b6f29a58050" name="Changes" comment="Primi risultati per due soli modi">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dataSet.py" beforeDir="false" afterPath="$PROJECT_DIR$/dataSet.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/visualization.py" beforeDir="false" afterPath="$PROJECT_DIR$/visualization.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -316,7 +310,15 @@
       <option name="project" value="LOCAL" />
       <updated>1718380253875</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="Primi risultati per due soli modi">
+      <option name="closed" value="true" />
+      <created>1718957864125</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1718957864125</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -357,7 +359,8 @@
     <MESSAGE value="Violin Plate + random points funzionante" />
     <MESSAGE value="Violin Plate funzionante per singole freq, inizio modifiche" />
     <MESSAGE value="Prima bozza su 3 freq, non funzionante" />
-    <option name="LAST_COMMIT_MESSAGE" value="Prima bozza su 3 freq, non funzionante" />
+    <MESSAGE value="Primi risultati per due soli modi" />
+    <option name="LAST_COMMIT_MESSAGE" value="Primi risultati per due soli modi" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/PlateModes$main.coverage" NAME="main Coverage Results" MODIFIED="1718908663231" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
