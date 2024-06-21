@@ -48,7 +48,7 @@ def scale_to_target(W, H, target, n_d):
 
 class KirchhoffDataset(Dataset):
 
-    def __init__(self, T, nue, E, D, H, W, total_length, den: float, omegas, batch_size_domain, known_disp_dict,
+    def __init__(self, T, nue, E, D, H, W, total_length, den: float, omegas, batch_size_domain, known_disp_concatenate,
                  x_t, y_t, max_norm, free_edges, device, sample_step, dist_bound, n_samp_x,
                  n_samp_y):
         self.T = T
@@ -59,11 +59,11 @@ class KirchhoffDataset(Dataset):
         self.W = W
         self.total_length = total_length
         self.den = den
-        self.omegas = torch.tensor(omegas, dtype=torch.float32)
+        self.omegas = omegas
         self.batch_size_domain = batch_size_domain
-        self.known_disp_dict = known_disp_dict
-        self.x_t = torch.tensor(x_t, dtype=torch.float32)
-        self.y_t = torch.tensor(y_t, dtype=torch.float32)
+        self.known_disp_concatenate = known_disp_concatenate
+        self.x_t = x_t
+        self.y_t = y_t
         self.max_norm = max_norm
         self.free_edges = free_edges
         self.device = device
@@ -94,49 +94,62 @@ class KirchhoffDataset(Dataset):
         # x_random = torch.rand((self.batch_size_domain,)) * self.W
         # y_random = torch.rand((self.batch_size_domain,)) * self.H
 
-        x = torch.cat((self.x_t, x_random), dim=0)
-        y = torch.cat((self.y_t, y_random), dim=0)
+        x_t = np.tile(self.x_t, len(self.omegas))
+        x_t = torch.tensor(x_t, dtype=torch.float32)
+        y_t = np.tile(self.y_t, len(self.omegas))
+        y_t = torch.tensor(y_t, dtype=torch.float32)
+        x = torch.cat((x_t, x_random), dim=0)
+        y = torch.cat((y_t, y_random), dim=0)
         x = x[..., None]
         y = y[..., None]
         x = x.to(self.device)  # CUDA
         y = y.to(self.device)
+        #print('x_t: ', x_t)
 
-        #print('OMEGAS_dataset: ', self.omegas)
-        omega_index = torch.randint(0, len(self.omegas), (1,)).item()
-        omega = self.omegas[omega_index]
+        omega_random = np.random.choice(self.omegas, len(x_random))
+        omega_random = torch.tensor(omega_random, dtype=torch.float32)
+        #omega_t = np.tile(self.omegas, len(self.x_t))
+        omegas = torch.tensor(self.omegas, dtype=torch.float32)
+        omega_t = omegas.repeat_interleave(len(self.x_t))
+        omega = torch.cat((omega_t, omega_random), dim=0)
+        omega = omega[..., None]
         omega = omega.to(self.device)  # CUDA
-        #print('OMEGA_dataset: ', omega)
 
         return x, y, omega
 
     def compute_loss(self, x, y, omega, preds, eval=False):
         # governing equation loss
-        # u = np.squeeze(preds[:, len(self.x_t):, 0:1])
-        u_t = np.squeeze(preds[:len(self.x_t), 0:1])
+        u_t = np.squeeze(preds[:len(self.known_disp_concatenate), 0:1])
         x = np.squeeze(x)
         y = np.squeeze(y)
+        omega = np.squeeze(omega)
         u = np.squeeze(preds[:, 0:1])
-        # dudxx = np.squeeze(preds[:, len(self.x_t):, 1:2])
-        # dudyy = np.squeeze(preds[:, len(self.x_t):, 2:3])
-        # dudxxxx = np.squeeze(preds[:, len(self.x_t):, 3:4])
-        # dudyyyy = np.squeeze(preds[:, len(self.x_t):, 4:5])
-        # dudxxyy = np.squeeze(preds[:, len(self.x_t):, 5:6])
+        #u = np.squeeze(preds[len(self.known_disp_concatenate):, 0:1])
+        #omega = omega[len(self.known_disp_concatenate):]
+
         dudxx = np.squeeze(preds[:, 1:2])
         dudyy = np.squeeze(preds[:, 2:3])
         dudxxxx = np.squeeze(preds[:, 3:4])
         dudyyyy = np.squeeze(preds[:, 4:5])
         dudxxyy = np.squeeze(preds[:, 5:6])
+        #dudxx = np.squeeze(preds[len(self.known_disp_concatenate):, 1:2])
+        #dudyy = np.squeeze(preds[len(self.known_disp_concatenate):, 2:3])
+        #dudxxxx = np.squeeze(preds[len(self.known_disp_concatenate):, 3:4])
+        #dudyyyy = np.squeeze(preds[len(self.known_disp_concatenate):, 4:5])
+        #dudxxyy = np.squeeze(preds[len(self.known_disp_concatenate):, 5:6])
 
-        #print('OMEGA_item_dataset: ', omega.item())
-        #print('KNOWN_DISP_DICT: ', self.known_disp_dict)
-        #print('omega: ', omega.item())
-        #print('u_t: ', self.known_disp_dict[round(omega.item(), 8)].shape)
-        err_t = self.known_disp_dict[round(omega.item(), 6)] - u_t
+        #print('x: ', x.shape)
+        #print('u: ', u.shape)
+        #print('omega: ', omega.shape)
+        #print('dudxxxx: ', dudxxxx.shape)
+        #print('kdc: ', self.known_disp_concatenate.shape)
+        err_t = self.known_disp_concatenate - u_t
 
         f = (dudxxxx + 2 * dudxxyy + dudyyyy -
-             (self.den * self.T * (round(omega.item(), 6) ** 2)) / self.D * u)
+             (self.den * self.T * (omega ** 2)) / self.D * u)
+        #print('f: ', f.shape)
 
-        L_f = f ** 2
+        L_f = f ** 2 * 3000
         L_t = err_t ** 2
 
         if not self.free_edges:

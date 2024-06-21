@@ -142,13 +142,16 @@ class PINNet(nn.Module):
         x, y = coords[:, :, 0], coords[:, :, 1]
         x = torch.squeeze(x)
         y = torch.squeeze(y)
+        omega = torch.squeeze(omega)
         x = x[..., None]
         y = y[..., None]
         omega = omega[..., None]
         x.requires_grad_(True)
         y.requires_grad_(True)
-        batch_size = x.size(0)
-        omega = omega.expand(batch_size, 1)
+        #batch_size = x.size(0)
+        #print('x: ', x.shape)
+        #print('omega: ', omega.shape)
+        #omega = omega.expand(batch_size, 1)
         o = self.net(torch.cat((x, y, omega), dim=-1))
         dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
         output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)
