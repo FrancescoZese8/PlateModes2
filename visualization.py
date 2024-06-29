@@ -5,15 +5,17 @@ from matplotlib import cm
 from matplotlib.colors import Normalize
 
 
-
 def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode, image_width,
                    image_height, H, W, H_p, W_p, sample_step, dist_bound, n_d, size_norm, color):
     known_disps = [known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for index, (i, j) in
                    enumerate(zip(x_p, y_p))]
-    kdp = np.reshape(known_disps, (image_height, image_width))
-    fkdp = np.reshape(full_known_disp, (image_height, image_width))
-    X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step), np.arange(dist_bound, H + dist_bound, sample_step))
+    kdp = np.reshape(np.real(known_disps), (image_height, image_width))
 
+    # Converti full_known_disp in modulo
+    fkdp = np.reshape(np.real(full_known_disp), (image_height, image_width))
+
+    X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step),
+                       np.arange(dist_bound, H + dist_bound, sample_step))
 
     fig = plt.figure(figsize=(12, 10))
 
@@ -22,18 +24,15 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
     surf1 = ax3d_1.plot_surface(X, Y, fkdp, cmap=color)
     ax3d_1.set_xlabel('X')
     ax3d_1.set_ylabel('Y')
-    ax3d_1.set_title('Real Displacement mode: {}'.format(eigen_mode))
-
+    ax3d_1.set_title('Displacement mode: {}'.format(eigen_mode))
     ax3d_1.text2D(0.05, 0.95, 'Size_norm: {}'.format(size_norm), transform=ax3d_1.transAxes)
-
 
     # Secondo subplot
     ax2d_1 = fig.add_subplot(222)
     im1 = ax2d_1.imshow(fkdp, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
     ax2d_1.set_xlabel('X')
     ax2d_1.set_ylabel('Y')
-    ax2d_1.set_title('Real Displacement mode: {}'.format(eigen_mode))
-
+    ax2d_1.set_title('Displacement mode: {}'.format(eigen_mode))
 
     # Terzo subplot
     ax3d_2 = fig.add_subplot(223, projection='3d')

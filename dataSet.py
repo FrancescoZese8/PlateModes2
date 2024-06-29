@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from torch.utils.data import Dataset
+from functorch import vmap
 
 EPS = 1e-6
 
@@ -8,12 +9,20 @@ EPS = 1e-6
 def gradient(y, x, grad_outputs=None):
     if grad_outputs is None:
         grad_outputs = torch.ones_like(y)
-    grad = torch.autograd.grad(y, [x], grad_outputs=grad_outputs, create_graph=True)[0]
+        #grad_outputs = grad_outputs.unsqueeze(0).expand(y.size(0), *y.shape)
+        #grad_outputs = grad_outputs[None, ...]
+        #grad_outputs = grad_outputs.unsqueeze(0).expand(y.size(0), -1, -1)
+    #print('grad_outputs shape: ', grad_outputs.shape)
+    #print('y shape: ', y.shape)
+    grad = torch.autograd.grad(y, [x], grad_outputs=[grad_outputs], create_graph=True)[0]
     return grad
 
 
 def compute_derivatives(x, y, u):
+    #print('u: ', u)
+    #print('x: ', x)
     dudx = gradient(u, x)
+    #print('dudx: ', dudx)
     dudy = gradient(u, y)
 
     dudxx = gradient(dudx, x)
@@ -107,7 +116,6 @@ class KirchhoffDataset(Dataset):
         # governing equation loss
         u_t = np.squeeze(preds[:len(self.x_t), 0:1])
         #print('u_t ', u_t)
-        #print('preds ', preds)
         x = np.squeeze(x)
         y = np.squeeze(y)
         u = np.squeeze(preds[:, 0:1])
@@ -118,6 +126,7 @@ class KirchhoffDataset(Dataset):
         dudxxyy = np.squeeze(preds[:, 5:6])
 
         err_t = self.known_disp - u_t
+        print('U: ', u_t.dtype)
         # print('u_t: ', u_t.shape, 'err_t: ', err_t.shape, 'kd: ', self.known_disp.shape)
 
         # known_disps = [self.known_disp_map.get((round(i, 2), round(j, 2)), u[index]) for index, (i, j) in

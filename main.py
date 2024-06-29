@@ -7,12 +7,12 @@ import training
 import pandas as pd
 import visualization
 import numpy as np
-
+import re
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 300
+num_epochs = 150
 n_step = 50
 num_known_points = 25
 size_norm = 10
@@ -42,21 +42,38 @@ W_p, H_p = W, H
 W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
-eigen_mode = 22
-freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
+eigen_mode = 7
+'''freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
-         165.3, ]  # ViolinPlateFOD3
+         165.3, ]  # ViolinPlateFOD3'''
+freqs = [None, None, None, None, None, None, None, 128.14, 137.46, 309.45, 354.53]  # TODO
 omega = freqs[eigen_mode] * 2 * torch.pi
 print('freq: ', freqs[eigen_mode])
 omega = omega / scaling_factor ** 2
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 
-df = pd.read_csv('ViolinPlateFOD3.csv', sep=';')
-df_numeric = df.apply(pd.to_numeric, errors='coerce')
-n_samp_x, n_samp_y = 40, 70
+df = pd.read_csv('ViolinPlateWD.csv', sep=';', dtype=str)
 
+
+def to_complex(val):
+    if isinstance(val, str):
+        try:
+            # Rimuovi eventuali spazi bianchi
+            val = val.strip()
+            # Sostituisci 'i' con 'j' per la compatibilità con la funzione complex di Python
+            val = val.replace('i', 'j')
+            return complex(val)
+        except ValueError:
+            return np.nan
+    return val
+
+
+df_numeric = df.applymap(to_complex)
+#print('DF: ', df_numeric.dtypes)
+
+n_samp_x, n_samp_y = 20, 35
 
 sample_step = W / n_samp_x
 if H / n_samp_y != sample_step:
@@ -70,10 +87,8 @@ for i in range(n_samp_y):
         x_p.append(round(j * sample_step + dist_bound, n_d))
         y_p.append(round(i * sample_step + dist_bound, n_d))
 
-
 x_t = []
 y_t = []
-
 
 min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 10, n_d)
 
@@ -102,25 +117,31 @@ while i < num_known_points:
 # x_t = x_p
 # y_t = y_p
 
-full_known_disp = torch.tensor(df_numeric.iloc[:, 2:].values)
+complex_array = np.array(df_numeric.values.tolist(), dtype=np.complex128)
+full_known_disp = torch.tensor(complex_array, dtype=torch.complex128)
+
 full_known_disp = full_known_disp[:, eigen_mode]
 print('Dataset length: ', len(full_known_disp))
 print('x_p length: ', len(x_p))
-min_val = torch.min(full_known_disp)
-max_val = torch.max(full_known_disp)
+magnitude = torch.abs(full_known_disp)
+min_val = torch.min(magnitude)
+max_val = torch.max(magnitude)
 max_norm = 1
-full_known_disp = (-1 + 2 * (full_known_disp - min_val) / (max_val - min_val)) * max_norm
+normalized_magnitude = (magnitude - min_val) / (max_val - min_val) * max_norm
+phase = torch.angle(full_known_disp)
+full_known_disp = normalized_magnitude * torch.exp(1j * phase)
 full_known_disp_map = dict(zip(zip(x_p, y_p), full_known_disp))
 known_disp = [full_known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for index, (i, j) in
               enumerate(zip(x_t, y_t))]
 known_disp_map = dict(zip(zip(x_t, y_t), known_disp))
 known_disp = torch.tensor(known_disp)
 
-visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
+
+'''visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
                              image_width=n_samp_x,
                              image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, sample_step=sample_step,
                              dist_bound=dist_bound, n_d=n_d, size_norm=size_norm,
-                             color=color)
+                             color=color)'''
 
 plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=total_length, den=den,
                                  omega=omega, batch_size_domain=batch_size_domain, known_disp=known_disp,
@@ -133,7 +154,7 @@ plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=
 data_loader = DataLoader(plate, shuffle=True, batch_size=batch_size, pin_memory=False, num_workers=0)
 model = modules.PINNet(num_hidden_layers=num_hidden_layers, hidden_features=hidden_features,
                        out_features=1, type=opt_model, mode=mode)
-model = model.to(device)  # CUDA
+model = model.to(device)  # CUDAInsi
 
 history_loss = {'L_f': [], 'L_b0': [], 'L_b2': [], 'L_u': [], 'L_t': [], 'L_m': []}
 if not relo:

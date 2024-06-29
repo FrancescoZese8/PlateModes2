@@ -2,7 +2,6 @@ import torch
 from tqdm.autonotebook import tqdm
 import time
 
-
 def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_fn,
           history_loss, history_lambda, metric, metric_lam, max_epochs_without_improvement, free_edges, clip_grad=False,
           use_lbfgs=False, relo=True):
@@ -23,6 +22,7 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
 
     total_steps = 0
     best_loss = float('inf')
+    current_epochs_without_improvement = 0
     with tqdm(total=len(train_dataloader) * epochs) as pbar:
         train_losses = []
         for epoch in range(epochs):
@@ -120,7 +120,7 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
                 history_loss['L_b2'].append(metric_result['L_b2'])
                 history_loss['L_u'].append(metric_result['L_u'])
                 history_loss['L_t'].append(metric_result['L_t'])
-                #history_loss['L_m'].append(metric_result['L_m'])
+                # history_loss['L_m'].append(metric_result['L_m'])
             except TypeError:
                 print(f"Error in epoch {epoch}: metric_result = {metric_result}")
 
@@ -130,7 +130,7 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
                     history_lambda['L_b0_lambda'].append(lambda_results['L_b0'])
                     history_lambda['L_b2_lambda'].append(lambda_results['L_b2'])
                     history_lambda['L_t_lambda'].append(lambda_results['L_t'])
-                    #history_lambda['L_m_lambda'].append(lambda_results['L_m'])
+                    # history_lambda['L_m_lambda'].append(lambda_results['L_m'])
 
                 except TypeError:
                     print(f"Error in epoch {epoch}: metric_result = {metric_result}")
@@ -150,7 +150,6 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
             # FINE EARLY STOPPING
             pbar.update(1)
 
-
 class LinearDecaySchedule():
     def __init__(self, start_val, final_val, num_steps):
         self.start_val = start_val
@@ -159,3 +158,4 @@ class LinearDecaySchedule():
 
     def __call__(self, iter):
         return self.start_val + (self.final_val - self.start_val) * min(iter / self.num_steps, 1.)
+
