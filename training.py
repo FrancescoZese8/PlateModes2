@@ -40,9 +40,9 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
                             optim.zero_grad()
                             model_output = model(model_input)
                             losses = loss_fn(model_output, model_input)
-                            train_loss = 0.
+                            train_loss = torch.tensor(0.0, requires_grad=True)
                             for loss_name, loss in losses.items():
-                                train_loss += loss.mean()
+                                train_loss = train_loss + loss.mean()
                             train_loss.backward()
                             return train_loss
 
@@ -51,10 +51,9 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
                     model_output = model(model_input)
                     losses = loss_fn.call(model_output, model_input)
 
-                    train_loss = 0.
+                    train_loss = torch.tensor(0.0, requires_grad=True)
                     for loss_name, loss in losses.items():
-                        single_loss = loss.mean()
-                        train_loss += single_loss
+                        train_loss = train_loss + loss.mean()
 
                     train_losses.append(train_loss.item())
 

@@ -5,15 +5,14 @@ from matplotlib import cm
 from matplotlib.colors import Normalize
 
 
-
 def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode, image_width,
                    image_height, H, W, H_p, W_p, sample_step, dist_bound, n_d, size_norm, color):
     known_disps = [known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for index, (i, j) in
                    enumerate(zip(x_p, y_p))]
     kdp = np.reshape(known_disps, (image_height, image_width))
     fkdp = np.reshape(full_known_disp, (image_height, image_width))
-    X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step), np.arange(dist_bound, H + dist_bound, sample_step))
-
+    X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step),
+                       np.arange(dist_bound, H + dist_bound, sample_step))
 
     fig = plt.figure(figsize=(12, 10))
 
@@ -26,14 +25,12 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
 
     ax3d_1.text2D(0.05, 0.95, 'Size_norm: {}'.format(size_norm), transform=ax3d_1.transAxes)
 
-
     # Secondo subplot
     ax2d_1 = fig.add_subplot(222)
     im1 = ax2d_1.imshow(fkdp, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
     ax2d_1.set_xlabel('X')
     ax2d_1.set_ylabel('Y')
     ax2d_1.set_title('Real Displacement mode: {}'.format(eigen_mode))
-
 
     # Terzo subplot
     ax3d_2 = fig.add_subplot(223, projection='3d')
@@ -53,7 +50,8 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
     plt.show()
 
 
-def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device, image_width, image_height, H, W, H_p, W_p, model, sample_step, dist_bound, color):
+def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device, image_width, image_height, H, W, H_p,
+                         W_p, model, sample_step, dist_bound, color):
     x_p = torch.tensor(x_p, dtype=torch.float)
     y_p = torch.tensor(y_p, dtype=torch.float)
     x_p = x_p[..., None, None]
@@ -76,7 +74,6 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
     X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step),
                        np.arange(dist_bound, H + dist_bound, sample_step))
 
-
     # Primo plot (plot 3D)
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(111, projection='3d')
@@ -88,7 +85,6 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
 
     # Mostra il primo plot
     plt.show()
-
 
     # Secondo plot (subplot con due immagini)
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
@@ -136,7 +132,7 @@ def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
     fig = plt.figure(figsize=(6, 4.5), dpi=100)
     plt.plot(torch.log(torch.tensor(history_loss['L_f'])), label='$L_f$ governing equation')
     plt.plot(torch.log(torch.tensor(history_loss['L_t'])), label='$L_t$ Known points')
-    #plt.plot(torch.log(torch.tensor(history_loss['L_m'])), label='$L_m$ Simmetry points')
+    # plt.plot(torch.log(torch.tensor(history_loss['L_m'])), label='$L_m$ Simmetry points')
     if not free_edges:
         plt.plot(torch.log(torch.tensor(history_loss['L_b0'])), label='$L_{b0}$ Dirichlet boundaries')
         plt.plot(torch.log(torch.tensor(history_loss['L_b2'])), label='$L_{b2}$ Moment boundaries')
@@ -152,7 +148,7 @@ def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
         fig2 = plt.figure(figsize=(6, 4.5), dpi=100)
         plt.plot(history_lambda['L_f_lambda'], label='$\lambda_f$ governing equation')
         plt.plot(history_lambda['L_t_lambda'], label='$\lambda_{t}$ Known points')
-        #plt.plot(history_lambda['L_m_lambda'], label='$\lambda_{m}$ Simmetry points')
+        # plt.plot(history_lambda['L_m_lambda'], label='$\lambda_{m}$ Simmetry points')
         if not free_edges:
             plt.plot(history_lambda['L_b0_lambda'], label='$\lambda_{b0}$ Dirichlet boundaries')
             plt.plot(history_lambda['L_b2_lambda'], label='$\lambda_{b2}$ Moment boundaries')

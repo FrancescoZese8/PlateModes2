@@ -14,8 +14,8 @@ print('device: ', device)
 
 num_epochs = 300
 n_step = 50
-num_known_points = 25
-size_norm = 10
+num_known_points = 20
+size_norm = 15
 batch_size = 1
 total_length = 1
 lr = 0.001
@@ -116,11 +116,11 @@ known_disp = [full_known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for ind
 known_disp_map = dict(zip(zip(x_t, y_t), known_disp))
 known_disp = torch.tensor(known_disp)
 
-visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
+'''visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
                              image_width=n_samp_x,
                              image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, sample_step=sample_step,
                              dist_bound=dist_bound, n_d=n_d, size_norm=size_norm,
-                             color=color)
+                             color=color)'''
 
 plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=total_length, den=den,
                                  omega=omega, batch_size_domain=batch_size_domain, known_disp=known_disp,
