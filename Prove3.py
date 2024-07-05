@@ -1,20 +1,14 @@
 import torch
-from functorch import vmap, grad
 
 x = torch.tensor([1.0, 2.0], requires_grad=True)
-#out = torch.cat([x * 2, x * 3], dim=0)
-out = torch.stack([x[0] * 2, x[1] * 3])
-
-print('x:', x)
-print('out:', out)
-
-
-def gradient(y, x, grad_outputs=None):
-    if grad_outputs is None:
-        grad_outputs = torch.ones_like(y)
-    grad = torch.autograd.grad(y, [x], grad_outputs=grad_outputs, create_graph=True)[0]
-    return grad
-
-
-dodx = gradient(out, x)
-print('grad: ', dodx)
+multipliers = torch.tensor([2.0, 3.0]).unsqueeze(1)
+print('multipliers: ', multipliers.shape)
+out = x * multipliers
+#batched_grad = torch.arange(3)  # Size([3])
+batched_grad = torch.ones_like(out)
+x = x.repeat(2, 1)
+grad = torch.autograd.grad(out, [x], grad_outputs=batched_grad)[0]
+print('x: ', x)
+print('out: ', out)
+#print('grad_shape: ', grad.shape)
+print('grad: ', grad)
