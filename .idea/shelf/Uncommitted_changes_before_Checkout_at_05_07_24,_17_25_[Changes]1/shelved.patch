@@ -1,0 +1,147 @@
+Index: modules.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import torch\nfrom torch import nn\nfrom torchmeta.modules import (MetaModule, MetaSequential)\nfrom torchmeta.modules.utils import get_subdict\nimport numpy as np\nfrom collections import OrderedDict\nimport math\nfrom dataSet import compute_derivatives\n\n\nclass BatchLinear(nn.Linear, MetaModule):\n    '''A linear meta-layer that can deal with batched weight matrices and biases, as for instance output by a\n    hypernetwork.'''\n    __doc__ = nn.Linear.__doc__\n\n    def forward(self, input_net, params=None):\n        if params is None:\n            params = OrderedDict(self.named_parameters())\n\n        bias = params.get('bias', None)\n        # print('bias: ', bias.shape)\n        weight = params['weight']\n        # print('weight: ', weight.shape)\n        # print('input: ', input_net.shape)\n        output = input_net.matmul(weight.permute(*[i for i in range(len(weight.shape) - 2)], -1, -2))\n        # print('output: ', output.shape)\n        output += bias.unsqueeze(-2)\n        return output\n\n\nclass Sine(nn.Module):\n    def __init(self):\n        super().__init__()\n\n    def forward(self, input):\n        # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of factor 30\n        return torch.sin(5 * input)\n\n\nclass FCBlock(MetaModule):\n    '''A fully connected neural network that also allows swapping out the weights when used with a hypernetwork.\n    Can be used just as a normal neural network though, as well.\n    '''\n\n    def __init__(self, in_features, out_features, num_hidden_layers, hidden_features,\n                 outermost_linear=False, nonlinearity='relu', weight_init=None):\n        super().__init__()\n\n        self.first_layer_init = None\n\n        # Dictionary that maps nonlinearity name to the respective function, initialization, and, if applicable,\n        # special first-layer initialization scheme\n        nls_and_inits = {'sine': (Sine(), sine_init, first_layer_sine_init),\n                         'relu': (nn.ReLU(inplace=True), init_weights_normal, None),\n                         'silu': (nn.SiLU(), init_weights_xavier, None),  # first_layer_silu_init\n                         'sigmoid': (nn.Sigmoid(), init_weights_xavier, None),\n                         'tanh': (nn.Tanh(), init_weights_xavier, None),\n                         'selu': (nn.SELU(inplace=True), init_weights_selu, None),\n                         'softplus': (nn.Softplus(), init_weights_normal, None),\n                         'elu': (nn.ELU(inplace=True), init_weights_elu, None),\n                         'mish': (nn.Mish(), init_weights_xavier, None)}\n\n        nl, nl_weight_init, first_layer_init = nls_and_inits[nonlinearity]\n\n        if weight_init is not None:  # Overwrite weight init if passed\n            self.weight_init = weight_init\n        else:\n            self.weight_init = nl_weight_init\n\n        self.net = []\n        self.net.append(MetaSequential(\n            BatchLinear(in_features, hidden_features, bias=True), nl\n        ))\n\n        for i in range(num_hidden_layers):\n            self.net.append(MetaSequential(\n                BatchLinear(hidden_features, hidden_features, bias=True), nl  # nn.BatchNorm1d(hidden_features),\n            ))\n\n        if outermost_linear:\n            self.net.append(MetaSequential(BatchLinear(hidden_features, out_features, bias=True)))\n        else:\n            self.net.append(MetaSequential(\n                BatchLinear(hidden_features, out_features), nl\n            ))\n\n        self.net = MetaSequential(*self.net)\n        if self.weight_init is not None:\n            self.net.apply(self.weight_init)\n\n        if first_layer_init is not None:  # Apply special initialization to first layer, if applicable.\n            self.net[0].apply(first_layer_init)\n\n    def forward(self, coords, params=None, **kwargs):\n        if params is None:\n            params = OrderedDict(self.named_parameters())\n\n        output = self.net(coords, params=get_subdict(params, 'net'))\n        return output\n\n    def forward_with_activations(self, coords, params=None, retain_grad=False):\n        '''Returns not only model output, but also intermediate activations.'''\n        if params is None:\n            params = OrderedDict(self.named_parameters())\n\n        activations = OrderedDict()\n\n        x = coords.clone().detach().requires_grad_(True)\n        activations['input'] = x\n        for i, layer in enumerate(self.net):\n            subdict = get_subdict(params, 'net.%d' % i)\n            for j, sublayer in enumerate(layer):\n                if isinstance(sublayer, BatchLinear):\n                    x = sublayer(x, params=get_subdict(subdict, '%d' % j))\n                else:\n                    x = sublayer(x)\n\n                if retain_grad:\n                    x.retain_grad()\n                activations['_'.join((str(sublayer.__class__), \"%d\" % i))] = x\n        return activations\n\n\nclass PINNet(nn.Module):\n    '''Architecture used by Raissi et al. 2019.'''\n\n    def __init__(self, num_hidden_layers, hidden_features, initial_conditions=True, out_features=1, type='tanh',\n                 in_features=2, mode='mlp'):\n        super().__init__()\n        self.mode = mode\n        self.num_hidden_layers = num_hidden_layers\n        self.hidden_features = hidden_features\n        self.net = FCBlock(in_features=in_features, out_features=out_features, num_hidden_layers=num_hidden_layers,\n                           hidden_features=hidden_features, outermost_linear=True, nonlinearity=type,\n                           weight_init=None)\n        print(self)\n\n    def forward(self, model_input):\n        # Enables us to compute gradients w.r.t. input\n        coords = model_input['coords']\n        x, y = coords[:, :, 0], coords[:, :, 1]\n        x = torch.squeeze(x)\n        y = torch.squeeze(y)\n        x = x[..., None]\n        y = y[..., None]\n        x.requires_grad_(True)\n        y.requires_grad_(True)\n        o = self.net(torch.cat((x, y), dim=-1))\n        dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)\n        output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)\n        return {'model_in': coords, 'model_out': output}\n\n\n########################\n# Initialization methods\n\ndef _no_grad_trunc_normal_(tensor, mean, std, a, b):\n    # For PINNet, Raissi et al. 2019\n    # Method based on https://people.sc.fsu.edu/~jburkardt/presentations/truncated_normal.pdf\n    # grab from upstream pytorch branch and paste here for now\n    def norm_cdf(x):\n        # Computes standard normal cumulative distribution function\n        return (1. + math.erf(x / math.sqrt(2.))) / 2.\n\n    with torch.no_grad():\n        # Values are generated by using a truncated uniform distribution and\n        # then using the inverse CDF for the normal distribution.\n        # Get upper and lower cdf values\n        l = norm_cdf((a - mean) / std)\n        u = norm_cdf((b - mean) / std)\n\n        # Uniformly fill tensor with values from [l, u], then translate to\n        # [2l-1, 2u-1].\n        tensor.uniform_(2 * l - 1, 2 * u - 1)\n\n        # Use inverse cdf transform for normal distribution to get truncated\n        # standard normal\n        tensor.erfinv_()\n\n        # Transform to proper mean, std\n        tensor.mul_(std * math.sqrt(2.))\n        tensor.add_(mean)\n\n        # Clamp to ensure it's in the proper range\n        tensor.clamp_(min=a, max=b)\n        return tensor\n\n\ndef init_weights_trunc_normal(m):\n    # For PINNet, Raissi et al. 2019\n    # Method based on https://people.sc.fsu.edu/~jburkardt/presentations/truncated_normal.pdf\n    if type(m) == BatchLinear or type(m) == nn.Linear:\n        if hasattr(m, 'weight'):\n            fan_in = m.weight.size(1)\n            fan_out = m.weight.size(0)\n            std = math.sqrt(2.0 / float(fan_in + fan_out))\n            mean = 0.\n            # initialize with the same behavior as tf.truncated_normal\n            # \"The generated values follow a normal distribution with specified mean and\n            # standard deviation, except that values whose magnitude is more than 2\n            # standard deviations from the mean are dropped and re-picked.\"\n            _no_grad_trunc_normal_(m.weight, mean, std, -2 * std, 2 * std)\n\n\ndef init_weights_normal(m):\n    if type(m) == BatchLinear or type(m) == nn.Linear:\n        if hasattr(m, 'weight'):\n            nn.init.kaiming_normal_(m.weight, a=0.0, nonlinearity='relu', mode='fan_in')\n\n\ndef init_weights_selu(m):\n    if type(m) == BatchLinear or type(m) == nn.Linear:\n        if hasattr(m, 'weight'):\n            num_input = m.weight.size(-1)\n            nn.init.normal_(m.weight, std=1 / math.sqrt(num_input))\n\n\ndef init_weights_elu(m):\n    if type(m) == BatchLinear or type(m) == nn.Linear:\n        if hasattr(m, 'weight'):\n            num_input = m.weight.size(-1)\n            nn.init.normal_(m.weight, std=math.sqrt(1.5505188080679277) / math.sqrt(num_input))\n\n\ndef init_weights_xavier(m):\n    if type(m) == BatchLinear or type(m) == nn.Linear:\n        if hasattr(m, 'weight'):\n            nn.init.xavier_normal_(m.weight, 1.0)\n            nn.init.zeros_(m.bias)\n\n\ndef sine_init(m):\n    with torch.no_grad():\n        if hasattr(m, 'weight'):\n            num_input = m.weight.size(-1)\n            # See supplement Sec. 1.5 for discussion of factor 30\n            m.weight.uniform_(-np.sqrt(6 / num_input) / 30, np.sqrt(6 / num_input) / 30)\n\n\ndef first_layer_sine_init(m):\n    with torch.no_grad():\n        if hasattr(m, 'weight'):\n            num_input = m.weight.size(-1)\n            # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of factor 30\n            m.weight.uniform_(-1 / num_input, 1 / num_input)\n\n\ndef first_layer_silu_init(m):\n    with torch.no_grad():\n        if hasattr(m, 'weight'):\n            nn.init.xavier_normal_(m.weight, 1.0)\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/modules.py b/modules.py
+--- a/modules.py	
++++ b/modules.py	
+@@ -138,16 +138,24 @@
+     def forward(self, model_input):
+         # Enables us to compute gradients w.r.t. input
+         coords = model_input['coords']
++        coords = coords.squeeze(0)
+         x, y = coords[:, :, 0], coords[:, :, 1]
+-        x = torch.squeeze(x)
+-        y = torch.squeeze(y)
+-        x = x[..., None]
+-        y = y[..., None]
++        #x = torch.squeeze(x)
++        #y = torch.squeeze(y)
++        #x = x[..., None]
++        #y = y[..., None]
+         x.requires_grad_(True)
+         y.requires_grad_(True)
++        x = x.unsqueeze(-1)
++        y = y.unsqueeze(-1)
+         o = self.net(torch.cat((x, y), dim=-1))
++        print('IN: ', torch.cat((x, y), dim=-1).shape)
++        print('OUT: ', o.shape)
+         dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
++        #o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = (o.unsqueeze(-1), dudxx.unsqueeze(-1), dudyy.unsqueeze(-1),
++                                                      #dudxxxx.unsqueeze(-1),dudyyyy.unsqueeze(-1), dudxxyy.unsqueeze(-1))
+         output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)
++        print('SSSS: ', output.shape)
+         return {'model_in': coords, 'model_out': output}
+ 
+ 
+Index: main.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from torch.utils.data import DataLoader\nimport dataSet\nimport torch\nimport loss\nimport modules\nimport training\nimport pandas as pd\nimport visualization\nimport numpy as np\n\n\ndevice = torch.device(\"cuda:0\" if torch.cuda.is_available() else \"cpu\")  # CUDA\nprint('device: ', device)\n\nnum_epochs = 500\nn_step = 50\nnum_known_points = 20\nsize_norm = 15\nbatch_size = 1\ntotal_length = 1\nlr = 0.001\nbatch_size_domain = 1000\nnum_hidden_layers = 2\nhidden_features = 32\ntemperature = 0.1  # 10e-05\nrho = 0.1  # 0.99, 0.5, 0.35, 0.1\nalpha = 0.99  # 0.9, 0.1, 0.1, 0.99\n\nsteps_til_summary = 10\nopt_model = 'silu'  # mish\nmode = 'pinn'\nclip_grad = 1.0\nuse_lbfgs = False\nrelo = True\nmax_epochs_without_improvement = 50\nfree_edges = True\ncolor = 'viridis'  # bwr\n\nn_d = 4\nW, H, T, E, nue, den = 0.20, 0.35, 0.005, 10e6, 0.28, 420\nW_p, H_p = W, H\nW, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)\nprint('W, H, scaling_factor: ', W, H, scaling_factor)\n\neigen_mode = 22\nfreqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,\n         37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,\n         97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,\n         165.3, ]  # ViolinPlateFOD3\nomega = freqs[eigen_mode] * 2 * torch.pi\nprint('freq: ', freqs[eigen_mode])\nomega = omega / scaling_factor ** 2\n\nD = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate\n\ndf = pd.read_csv('ViolinPlateFOD3.csv', sep=';')\ndf_numeric = df.apply(pd.to_numeric, errors='coerce')\nn_samp_x, n_samp_y = 40, 70\n\n\nsample_step = W / n_samp_x\nif H / n_samp_y != sample_step:\n    print('ERROR: sample step difference')\ndist_bound = sample_step / 2\nprint('W / n_samp_x: ', W / n_samp_x, 'H / n_samp_y: ', H / n_samp_y)\n\nx_p, y_p = [], []\nfor i in range(n_samp_y):\n    for j in range(n_samp_x):\n        x_p.append(round(j * sample_step + dist_bound, n_d))\n        y_p.append(round(i * sample_step + dist_bound, n_d))\n\n\nx_t = []\ny_t = []\n\n\nmin_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 10, n_d)\n\n\ndef euclidean_distance(x1, y1, x2, y2):\n    return np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)\n\n\ni = 0\nwhile i < num_known_points:\n    attempts = 0\n    while True:\n        rand_p = np.random.randint(0, n_samp_x * n_samp_y - 1)\n        new_x, new_y = x_p[rand_p], y_p[rand_p]\n        if all(euclidean_distance(new_x, new_y, x_t[j], y_t[j]) >= min_distance for j in range(len(x_t))):\n            x_t.append(new_x)\n            y_t.append(new_y)\n            i += 1\n            break\n        attempts += 1\n        if attempts >= 100:\n            x_t, y_t = [], []\n            i = 0\n            break\n\n# x_t = x_p\n# y_t = y_p\n\nfull_known_disp = torch.tensor(df_numeric.iloc[:, 2:].values)\nfull_known_disp = full_known_disp[:, eigen_mode]\nprint('Dataset length: ', len(full_known_disp))\nprint('x_p length: ', len(x_p))\nmin_val = torch.min(full_known_disp)\nmax_val = torch.max(full_known_disp)\nmax_norm = 1\nfull_known_disp = (-1 + 2 * (full_known_disp - min_val) / (max_val - min_val)) * max_norm\nfull_known_disp_map = dict(zip(zip(x_p, y_p), full_known_disp))\nknown_disp = [full_known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for index, (i, j) in\n              enumerate(zip(x_t, y_t))]\nknown_disp_map = dict(zip(zip(x_t, y_t), known_disp))\nknown_disp = torch.tensor(known_disp)\n\n'''visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,\n                             image_width=n_samp_x,\n                             image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, sample_step=sample_step,\n                             dist_bound=dist_bound, n_d=n_d, size_norm=size_norm,\n                             color=color)'''\n\nplate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=total_length, den=den,\n                                 omega=omega, batch_size_domain=batch_size_domain, known_disp=known_disp,\n                                 full_known_disp=full_known_disp, x_t=x_t, y_t=y_t,\n                                 max_norm=max_norm,\n                                 free_edges=free_edges, device=device, sample_step=sample_step,\n                                 dist_bound=dist_bound,\n                                 n_samp_x=n_samp_x, n_samp_y=n_samp_y)\n\ndata_loader = DataLoader(plate, shuffle=True, batch_size=batch_size, pin_memory=False, num_workers=0)\nmodel = modules.PINNet(num_hidden_layers=num_hidden_layers, hidden_features=hidden_features,\n                       out_features=3, type=opt_model, mode=mode)\nmodel = model.to(device)  # CUDA\n\nhistory_loss = {'L_f': [], 'L_b0': [], 'L_b2': [], 'L_u': [], 'L_t': [], 'L_m': []}\nif not relo:\n    loss_fn = loss.KirchhoffLoss(plate)\n    kirchhoff_metric = loss.KirchhoffMetric(plate, free_edges=free_edges)\n    history_lambda = None\n    metric_lam = None\nelse:\n    loss_fn = loss.ReLoBRaLoKirchhoffLoss(plate, temperature=temperature, rho=rho, alpha=alpha)\n    kirchhoff_metric = loss.KirchhoffMetric(plate, free_edges=free_edges)\n    history_lambda = {'L_f_lambda': [], 'L_b0_lambda': [], 'L_b2_lambda': [], 'L_t_lambda': [], 'L_m_lambda': []}\n    metric_lam = loss.ReLoBRaLoLambdaMetric(loss_fn, free_edges=free_edges)\n\ntraining.train(model=model, train_dataloader=data_loader, epochs=num_epochs, n_step=n_step, lr=lr,\n               steps_til_summary=steps_til_summary, loss_fn=loss_fn, history_loss=history_loss,\n               history_lambda=history_lambda,\n               metric=kirchhoff_metric, metric_lam=metric_lam, free_edges=free_edges, clip_grad=clip_grad,\n               use_lbfgs=use_lbfgs, max_epochs_without_improvement=max_epochs_without_improvement, relo=relo)\nmodel.eval()\n\nNMSE = visualization.visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device,\n                                          image_width=n_samp_x,\n                                          image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, model=model,\n                                          sample_step=sample_step,\n                                          dist_bound=dist_bound, color=color)\nprint('NMSE: ', NMSE)\n\nvisualization.visualise_loss(free_edges, metric_lam, history_loss, history_lambda)\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/main.py b/main.py
+--- a/main.py	
++++ b/main.py	
+@@ -132,7 +132,7 @@
+ 
+ data_loader = DataLoader(plate, shuffle=True, batch_size=batch_size, pin_memory=False, num_workers=0)
+ model = modules.PINNet(num_hidden_layers=num_hidden_layers, hidden_features=hidden_features,
+-                       out_features=3, type=opt_model, mode=mode)
++                       out_features=4, type=opt_model, mode=mode)
+ model = model.to(device)  # CUDA
+ 
+ history_loss = {'L_f': [], 'L_b0': [], 'L_b2': [], 'L_u': [], 'L_t': [], 'L_m': []}
+Index: dataSet.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import torch\nimport numpy as np\nfrom torch.utils.data import Dataset\n\nEPS = 1e-6\n\n\ndef gradient(y, x, grad_outputs=None):\n    if grad_outputs is None:\n        grad_outputs = torch.ones_like(y)\n    grads = [torch.autograd.grad(y[:, i], [x], grad_outputs=grad_outputs[:, i], create_graph=True, retain_graph=True)[0]\n             for i in range(y.shape[1])]\n    grad = torch.stack(grads, dim=1).squeeze(-1)\n    return grad\n\n\ndef compute_derivatives(x, y, u):\n\n    dudx = gradient(u, x)\n    dudy = gradient(u, y)\n\n    dudxx = gradient(dudx, x)\n    dudyy = gradient(dudy, y)\n\n    dudxxx = gradient(dudxx, x)\n    dudxxy = gradient(dudxx, y)\n    dudyyy = gradient(dudyy, y)\n\n    dudxxxx = gradient(dudxxx, x)\n    dudxxyy = gradient(dudxxy, y)\n    dudyyyy = gradient(dudyyy, y)\n\n\n    return dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy\n\n\ndef compute_moments(D, nue, dudxx, dudyy):\n    mx = -D * (dudxx + nue * dudyy)\n    my = -D * (nue * dudxx + dudyy)\n\n    return mx, my\n\n\ndef scale_to_target(W, H, target, n_d):\n    scaling_factor = round(target/max(W, H), 2)\n    W = round(W * scaling_factor, n_d)\n    H = round(H * scaling_factor, n_d)\n\n    return W, H, scaling_factor\n\n\nclass KirchhoffDataset(Dataset):\n\n    def __init__(self, T, nue, E, D, H, W, total_length, den: float, omega: float, batch_size_domain, known_disp,\n                 full_known_disp, x_t, y_t, max_norm, free_edges, device, sample_step, dist_bound, n_samp_x,\n                 n_samp_y):\n        self.T = T\n        self.nue = nue\n        self.E = E\n        self.D = D\n        self.H = H\n        self.W = W\n        self.total_length = total_length\n        self.den = den\n        self.omega = omega\n        self.batch_size_domain = batch_size_domain\n        self.known_disp = known_disp.to(device)\n        self.full_known_disp = full_known_disp\n        self.x_t = torch.tensor(x_t, dtype=torch.float32)\n        self.y_t = torch.tensor(y_t, dtype=torch.float32)\n        self.max_norm = max_norm\n        self.free_edges = free_edges\n        self.device = device\n        self.num_loss = 3\n        self.sample_step = sample_step\n        self.dist_bound = dist_bound\n        self.n_samp_x = n_samp_x\n        self.n_samp_y = n_samp_y\n\n    def __getitem__(self, item):\n        x, y = self.training_batch()\n        x.requires_grad_(True)\n        y.requires_grad_(True)\n        xy = torch.cat([x, y], dim=-1)\n        return {'coords': xy}\n\n    def __len__(self):\n        return self.total_length\n\n    def training_batch(self):\n\n        # x_p = np.arange(self.dist_bound, self.W + self.dist_bound, self.sample_step)\n        # y_p = np.arange(self.dist_bound, self.H + self.dist_bound, self.sample_step)\n        # x_index = np.random.randint(0, self.n_samp_x, size=self.batch_size_domain)\n        # y_index = np.random.randint(0, self.n_samp_y, size=self.batch_size_domain)\n        # x_random = torch.tensor(x_p[x_index], dtype=torch.float)\n        # y_random = torch.tensor(y_p[y_index], dtype=torch.float)\n        x_random = torch.rand((self.batch_size_domain,)) * self.W\n        y_random = torch.rand((self.batch_size_domain,)) * self.H\n\n        x = torch.cat((self.x_t, x_random), dim=0)\n        y = torch.cat((self.y_t, y_random), dim=0)\n        x = x[..., None]\n        y = y[..., None]\n        x = x.to(self.device)  # CUDA\n        y = y.to(self.device)\n        #print('x: ', x.shape)\n\n        return x, y\n\n    def compute_loss(self, x, y, preds, eval=False):\n        # governing equation loss\n        u_t = np.squeeze(preds[:len(self.x_t), 0:1])\n        #print('u_t ', u_t)\n        #print('preds ', preds)\n        x = np.squeeze(x)\n        y = np.squeeze(y)\n        u = np.squeeze(preds[:, 0:1])\n        dudxx = np.squeeze(preds[:, 1:2])\n        dudyy = np.squeeze(preds[:, 2:3])\n        dudxxxx = np.squeeze(preds[:, 3:4])\n        dudyyyy = np.squeeze(preds[:, 4:5])\n        dudxxyy = np.squeeze(preds[:, 5:6])\n\n        err_t = self.known_disp - u_t\n        # print('u_t: ', u_t.shape, 'err_t: ', err_t.shape, 'kd: ', self.known_disp.shape)\n\n        # known_disps = [self.known_disp_map.get((round(i, 2), round(j, 2)), u[index]) for index, (i, j) in\n        # enumerate(zip(x.tolist(), y.tolist()))]\n        # known_disps = torch.tensor(known_disps).to(self.device)\n        f = (dudxxxx + 2 * dudxxyy + dudyyyy -\n             (self.den * self.T * (self.omega ** 2)) / self.D * u)\n\n        L_f = f ** 2\n        L_t = err_t ** 2\n\n        if not self.free_edges:\n            # determine which points are on the boundaries of the domain\n            # if a point is on either of the boundaries, its value is 1 and 0 otherwise\n            x_lower = torch.where(x <= EPS, torch.tensor(1.0, device=self.device),\n                                  torch.tensor(0.0, device=self.device))  # CUDA\n            x_upper = torch.where(x >= self.W - EPS, torch.tensor(1.0, device=self.device),\n                                  torch.tensor(0.0, device=self.device))\n            y_lower = torch.where(y <= EPS, torch.tensor(1.0, device=self.device),\n                                  torch.tensor(0.0, device=self.device))\n            y_upper = torch.where(y >= self.H - EPS, torch.tensor(1.0, device=self.device),\n                                  torch.tensor(0.0, device=self.device))\n            # x_lower = torch.where(x <= EPS, torch.tensor(1.0), torch.tensor(0.0))\n            # x_upper = torch.where(x >= self.W - EPS, torch.tensor(1.0), torch.tensor(0.0))\n            # y_lower = torch.where(y <= EPS, torch.tensor(1.0), torch.tensor(0.0))\n            # y_upper = torch.where(y >= self.H - EPS, torch.tensor(1.0), torch.tensor(0.0))\n\n            L_b0 = torch.mul((x_lower + x_upper + y_lower + y_upper), u) ** 2\n\n            # compute 2nd order boundary condition loss\n            mx, my = compute_moments(self.D, self.nue, dudxx, dudyy)\n            L_b2 = torch.mul((x_lower + x_upper), mx) ** 2 + torch.mul((y_lower + y_upper), my) ** 2\n\n            if eval:\n                L_u = torch.zeros(self.batch_size_domain + 4 * self.batch_size_boundary)  # TODO\n\n                return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_u': L_u, 'L_t': L_t}\n            return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_t': L_t}\n        else:\n            return {'L_f': L_f, 'L_t': L_t}\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/dataSet.py b/dataSet.py
+--- a/dataSet.py	
++++ b/dataSet.py	
+@@ -8,27 +8,36 @@
+ def gradient(y, x, grad_outputs=None):
+     if grad_outputs is None:
+         grad_outputs = torch.ones_like(y)
+-    grads = [torch.autograd.grad(y[:, i], [x], grad_outputs=grad_outputs[:, i], create_graph=True, retain_graph=True)[0]
+-             for i in range(y.shape[1])]
+-    grad = torch.stack(grads, dim=1).squeeze(-1)
++    grad = torch.autograd.grad(y, [x], grad_outputs=grad_outputs, create_graph=True)[0]
+     return grad
+ 
+ 
+ def compute_derivatives(x, y, u):
+-
++    print('u: ', u.shape)
++    print('x: ', x.shape)
+     dudx = gradient(u, x)
++    print('dudx: ', dudx.shape)
+     dudy = gradient(u, y)
++    print('dudy: ', dudy.shape)
+ 
+     dudxx = gradient(dudx, x)
++    print('dudxx: ', dudxx.shape)
+     dudyy = gradient(dudy, y)
++    print('dudyy: ', dudyy.shape)
+ 
+     dudxxx = gradient(dudxx, x)
++    print('dudxxx: ', dudxxx.shape)
+     dudxxy = gradient(dudxx, y)
++    print('dudxxy: ', dudxxy.shape)
+     dudyyy = gradient(dudyy, y)
++    print('dudyyy: ', dudyyy.shape)
+ 
+     dudxxxx = gradient(dudxxx, x)
++    print('dudxxxx: ', dudxxxx.shape)
+     dudxxyy = gradient(dudxxy, y)
++    print('dudxxyy: ', dudxxyy.shape)
+     dudyyyy = gradient(dudyyy, y)
++    print('dudyyyy: ', dudyyyy.shape)
+ 
+ 
+     return dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy
+@@ -42,7 +51,7 @@
+ 
+ 
+ def scale_to_target(W, H, target, n_d):
+-    scaling_factor = round(target/max(W, H), 2)
++    scaling_factor = round(target / max(W, H), 2)
+     W = round(W * scaling_factor, n_d)
+     H = round(H * scaling_factor, n_d)
+ 
+@@ -100,19 +109,23 @@
+ 
+         x = torch.cat((self.x_t, x_random), dim=0)
+         y = torch.cat((self.y_t, y_random), dim=0)
+-        x = x[..., None]
+-        y = y[..., None]
++        x = x.unsqueeze(-1)
++        y = y.unsqueeze(-1)
++        x = x.repeat(1, 4)
++        y = y.repeat(1, 4)
++        x = x.unsqueeze(-1)
++        y = y.unsqueeze(-1)
+         x = x.to(self.device)  # CUDA
+         y = y.to(self.device)
+-        #print('x: ', x.shape)
+ 
+         return x, y
+ 
+     def compute_loss(self, x, y, preds, eval=False):
+         # governing equation loss
++        print('preds: ', preds.shape)
+         u_t = np.squeeze(preds[:len(self.x_t), 0:1])
+-        #print('u_t ', u_t)
+-        #print('preds ', preds)
++        # print('u_t ', u_t)
++        # print('preds ', preds)
+         x = np.squeeze(x)
+         y = np.squeeze(y)
+         u = np.squeeze(preds[:, 0:1])
