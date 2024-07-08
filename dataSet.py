@@ -8,9 +8,7 @@ EPS = 1e-6
 def gradient(y, x, grad_outputs=None):
     if grad_outputs is None:
         grad_outputs = torch.ones_like(y)
-    grads = [torch.autograd.grad(y[:, i], [x], grad_outputs=grad_outputs[:, i], create_graph=True, retain_graph=True)[0]
-             for i in range(y.shape[1])]
-    grad = torch.stack(grads, dim=1).squeeze(-1)
+    grad = torch.autograd.grad(y, [x], grad_outputs=grad_outputs, create_graph=True, retain_graph=True)[0]
     return grad
 
 
@@ -104,7 +102,6 @@ class KirchhoffDataset(Dataset):
         y = y[..., None]
         x = x.to(self.device)  # CUDA
         y = y.to(self.device)
-        #print('x: ', x.shape)
 
         return x, y
 

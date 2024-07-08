@@ -132,7 +132,7 @@ plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=
 
 data_loader = DataLoader(plate, shuffle=True, batch_size=batch_size, pin_memory=False, num_workers=0)
 model = modules.PINNet(num_hidden_layers=num_hidden_layers, hidden_features=hidden_features,
-                       out_features=3, type=opt_model, mode=mode)
+                       out_features=1, type=opt_model, mode=mode)
 model = model.to(device)  # CUDA
 
 history_loss = {'L_f': [], 'L_b0': [], 'L_b2': [], 'L_u': [], 'L_t': [], 'L_m': []}
