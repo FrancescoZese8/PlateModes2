@@ -3,8 +3,8 @@ import main
 
 def gridSearch_Relobralo():
     tmps = [1, 10e-03]  # , 10e-05
-    rhos = [0.5, 0.99]
-    alphas = [0.1, 0.99]
+    rhos = [0.1, 0.5, 0.99]
+    alphas = [0.5, 0.99]
     best_NMSE = 10e5
     best_tmp = 0
     best_rho = 0
@@ -16,17 +16,7 @@ def gridSearch_Relobralo():
 
                 NMSE = main.main(rho, alpha, tmp)
                 print('NMSE: ', NMSE, 'rho: ', rho, 'alpha: ', alpha, 'tmp: ', tmp)
-                if NMSE < best_NMSE:
-                    best_NMSE = NMSE
-                    best_rho = rho
-                    best_alpha = alpha
-                    best_tmp = tmp
 
-    print('best NMSE:', best_NMSE)
-    print('best_temperature: ', best_tmp)
-    print('best_rho: ', best_rho)
-    print('best_alpha: ', best_alpha)
-    print('best_tmp: ', best_tmp)
 
 
 def gridSearch_modes():

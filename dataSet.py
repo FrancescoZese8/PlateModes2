@@ -85,14 +85,14 @@ class KirchhoffDataset(Dataset):
 
     def training_batch(self):
 
-        x_p = np.arange(self.dist_bound, self.W + self.dist_bound, self.sample_step)
-        y_p = np.arange(self.dist_bound, self.H + self.dist_bound, self.sample_step)
-        x_index = np.random.randint(0, self.n_samp_x, size=self.batch_size_domain)
-        y_index = np.random.randint(0, self.n_samp_y, size=self.batch_size_domain)
-        x_random = torch.tensor(x_p[x_index], dtype=torch.float)
-        y_random = torch.tensor(y_p[y_index], dtype=torch.float)
-        # x_random = torch.rand((self.batch_size_domain,)) * self.W
-        # y_random = torch.rand((self.batch_size_domain,)) * self.H
+        #x_p = np.arange(self.dist_bound, self.W + self.dist_bound, self.sample_step)
+        #y_p = np.arange(self.dist_bound, self.H + self.dist_bound, self.sample_step)
+        #x_index = np.random.randint(0, self.n_samp_x, size=self.batch_size_domain)
+        #y_index = np.random.randint(0, self.n_samp_y, size=self.batch_size_domain)
+        #x_random = torch.tensor(x_p[x_index], dtype=torch.float)
+        #y_random = torch.tensor(y_p[y_index], dtype=torch.float)
+        x_random = torch.rand((self.batch_size_domain,)) * self.W
+        y_random = torch.rand((self.batch_size_domain,)) * self.H
 
         x_t = np.tile(self.x_t, len(self.omegas))
         x_t = torch.tensor(x_t, dtype=torch.float32)
@@ -106,8 +106,9 @@ class KirchhoffDataset(Dataset):
         y = y.to(self.device)
         #print('x_t: ', x_t)
 
-        omega_random = np.random.choice(self.omegas)
-        omega_random = np.tile(omega_random, self.batch_size_domain)
+        #omega_random = np.random.choice(self.omegas)
+        #omega_random = np.tile(omega_random, self.batch_size_domain)
+        omega_random = np.random.choice(self.omegas, size=self.batch_size_domain)
         omega_random = torch.tensor(omega_random, dtype=torch.float32)
         omegas = torch.tensor(self.omegas, dtype=torch.float32)
         omega_t = omegas.repeat_interleave(len(self.x_t))
@@ -147,7 +148,6 @@ class KirchhoffDataset(Dataset):
 
         f = (dudxxxx + 2 * dudxxyy + dudyyyy -
              (self.den * self.T * (omega ** 2)) / self.D * u)
-        #print('f: ', f.shape)
 
         L_f = f ** 2
         L_t = err_t ** 2
