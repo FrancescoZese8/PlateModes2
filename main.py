@@ -12,17 +12,17 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 500
+num_epochs = 200
 n_step = 50
-num_known_points = 20
-size_norm = 15
+num_known_points = 8
+size_norm = 10
 batch_size = 1
 total_length = 1
 lr = 0.001
 batch_size_domain = 1000
 num_hidden_layers = 2
 hidden_features = 32
-temperature = 0.1  # 10e-05
+temperature = 10e-05  # 10e-05
 rho = 0.1  # 0.99, 0.5, 0.35, 0.1
 alpha = 0.99  # 0.9, 0.1, 0.1, 0.99
 
@@ -42,7 +42,7 @@ W_p, H_p = W, H
 W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
-eigen_mode = 22
+eigen_mode = 8
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
@@ -53,9 +53,9 @@ omega = omega / scaling_factor ** 2
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 
-df = pd.read_csv('ViolinPlateFOD3.csv', sep=';')
+df = pd.read_csv('ViolinPlateFOD2.csv', sep=';')
 df_numeric = df.apply(pd.to_numeric, errors='coerce')
-n_samp_x, n_samp_y = 40, 70
+n_samp_x, n_samp_y = 20, 35
 
 
 sample_step = W / n_samp_x
@@ -75,7 +75,7 @@ x_t = []
 y_t = []
 
 
-min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 10, n_d)
+min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 20, n_d)
 
 
 def euclidean_distance(x1, y1, x2, y2):
@@ -83,6 +83,7 @@ def euclidean_distance(x1, y1, x2, y2):
 
 
 i = 0
+np.random.seed(1)
 while i < num_known_points:
     attempts = 0
     while True:
@@ -116,11 +117,11 @@ known_disp = [full_known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for ind
 known_disp_map = dict(zip(zip(x_t, y_t), known_disp))
 known_disp = torch.tensor(known_disp)
 
-'''visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
+visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
                              image_width=n_samp_x,
                              image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, sample_step=sample_step,
                              dist_bound=dist_bound, n_d=n_d, size_norm=size_norm,
-                             color=color)'''
+                             color=color)
 
 plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=total_length, den=den,
                                  omega=omega, batch_size_domain=batch_size_domain, known_disp=known_disp,
