@@ -122,9 +122,6 @@ class KirchhoffDataset(Dataset):
         err_t = self.known_disp - u_t
         # print('u_t: ', u_t.shape, 'err_t: ', err_t.shape, 'kd: ', self.known_disp.shape)
 
-        # known_disps = [self.known_disp_map.get((round(i, 2), round(j, 2)), u[index]) for index, (i, j) in
-        # enumerate(zip(x.tolist(), y.tolist()))]
-        # known_disps = torch.tensor(known_disps).to(self.device)
         f = (dudxxxx + 2 * dudxxyy + dudyyyy -
              (self.den * self.T * (self.omega ** 2)) / self.D * u)
 
