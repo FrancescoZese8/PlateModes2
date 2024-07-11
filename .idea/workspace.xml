@@ -125,7 +125,7 @@
       <workItem from="1717254197023" duration="35283000" />
       <workItem from="1717402405982" duration="48072000" />
       <workItem from="1717672079047" duration="46339000" />
-      <workItem from="1720626303099" duration="12645000" />
+      <workItem from="1720626303099" duration="12984000" />
     </task>
     <task id="LOCAL-00001" summary="ultima versione prima di modificare il calcolo dell'errore sui punti conosciuti">
       <option name="closed" value="true" />
@@ -319,7 +319,15 @@
       <option name="project" value="LOCAL" />
       <updated>1720685890744</updated>
     </task>
-    <option name="localTasksCounter" value="25" />
+    <task id="LOCAL-00025" summary="...">
+      <option name="closed" value="true" />
+      <created>1720685931694</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1720685931694</updated>
+    </task>
+    <option name="localTasksCounter" value="26" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
