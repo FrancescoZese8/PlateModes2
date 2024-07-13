@@ -9,34 +9,43 @@ EPS = 1e-6
 def gradient(y, x, grad_outputs=None):
     if grad_outputs is None:
         grad_outputs = torch.ones_like(y)
-        #grad_outputs = grad_outputs.unsqueeze(0).expand(y.size(0), *y.shape)
-        #grad_outputs = grad_outputs[None, ...]
-        #grad_outputs = grad_outputs.unsqueeze(0).expand(y.size(0), -1, -1)
-    #print('grad_outputs shape: ', grad_outputs.shape)
-    #print('y shape: ', y.shape)
     grad = torch.autograd.grad(y, [x], grad_outputs=[grad_outputs], create_graph=True)[0]
     return grad
 
 
 def compute_derivatives(x, y, u):
-    #print('u: ', u)
     #print('x: ', x)
-    dudx = gradient(u, x)
-    #print('dudx: ', dudx)
-    dudy = gradient(u, y)
+    R_u = u[:, 0]
+    I_u = u[:, 1]
+    R_dudx = gradient(R_u, x)
+    R_dudy = gradient(R_u, y)
 
-    dudxx = gradient(dudx, x)
-    dudyy = gradient(dudy, y)
+    R_dudxx = gradient(R_dudx, x)
+    R_dudyy = gradient(R_dudy, y)
 
-    dudxxx = gradient(dudxx, x)
-    dudxxy = gradient(dudxx, y)
-    dudyyy = gradient(dudyy, y)
+    R_dudxxx = gradient(R_dudxx, x)
+    R_dudxxy = gradient(R_dudxx, y)
+    R_dudyyy = gradient(R_dudyy, y)
 
-    dudxxxx = gradient(dudxxx, x)
-    dudxxyy = gradient(dudxxy, y)
-    dudyyyy = gradient(dudyyy, y)
+    R_dudxxxx = gradient(R_dudxxx, x)
+    R_dudxxyy = gradient(R_dudxxy, y)
+    R_dudyyyy = gradient(R_dudyyy, y)
 
-    return dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy
+    I_dudx = gradient(I_u, x)
+    I_dudy = gradient(I_u, y)
+
+    I_dudxx = gradient(I_dudx, x)
+    I_dudyy = gradient(I_dudy, y)
+
+    I_dudxxx = gradient(I_dudxx, x)
+    I_dudxxy = gradient(I_dudxx, y)
+    I_dudyyy = gradient(I_dudyy, y)
+
+    I_dudxxxx = gradient(I_dudxxx, x)
+    I_dudxxyy = gradient(I_dudxxy, y)
+    I_dudyyyy = gradient(I_dudyyy, y)
+
+    return R_dudxx, R_dudyy, R_dudxxxx, R_dudyyyy, R_dudxxyy, I_dudxx, I_dudyy, I_dudxxxx, I_dudyyyy, I_dudxxyy
 
 
 def compute_moments(D, nue, dudxx, dudyy):
@@ -126,7 +135,6 @@ class KirchhoffDataset(Dataset):
         dudxxyy = np.squeeze(preds[:, 5:6])
 
         err_t = self.known_disp - u_t
-        print('U: ', u_t.dtype)
         # print('u_t: ', u_t.shape, 'err_t: ', err_t.shape, 'kd: ', self.known_disp.shape)
 
         # known_disps = [self.known_disp_map.get((round(i, 2), round(j, 2)), u[index]) for index, (i, j) in
