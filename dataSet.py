@@ -121,23 +121,25 @@ class KirchhoffDataset(Dataset):
     def compute_loss(self, x, y, omega, preds, eval=False):
         # governing equation loss
         u_t = np.squeeze(preds[:len(self.known_disp_concatenate), 0:1])
+        #print('u_t: ', u_t.shape)
         x = np.squeeze(x)
         y = np.squeeze(y)
         omega = np.squeeze(omega)
-        #u = np.squeeze(preds[:, 0:1])
-        u = np.squeeze(preds[len(self.known_disp_concatenate):, 0:1])
-        omega = omega[len(self.known_disp_concatenate):]
+        u = np.squeeze(preds[:, 0:1])
+        #u = np.squeeze(preds[len(self.known_disp_concatenate):, 0:1])
+        #print('u: ', u.shape)
+        #omega = omega[len(self.known_disp_concatenate):]
 
-        #dudxx = np.squeeze(preds[:, 1:2])
-        #dudyy = np.squeeze(preds[:, 2:3])
-        #dudxxxx = np.squeeze(preds[:, 3:4])
-        #dudyyyy = np.squeeze(preds[:, 4:5])
-        #dudxxyy = np.squeeze(preds[:, 5:6])
-        dudxx = np.squeeze(preds[len(self.known_disp_concatenate):, 1:2])
-        dudyy = np.squeeze(preds[len(self.known_disp_concatenate):, 2:3])
-        dudxxxx = np.squeeze(preds[len(self.known_disp_concatenate):, 3:4])
-        dudyyyy = np.squeeze(preds[len(self.known_disp_concatenate):, 4:5])
-        dudxxyy = np.squeeze(preds[len(self.known_disp_concatenate):, 5:6])
+        dudxx = np.squeeze(preds[:, 1:2])
+        dudyy = np.squeeze(preds[:, 2:3])
+        dudxxxx = np.squeeze(preds[:, 3:4])
+        dudyyyy = np.squeeze(preds[:, 4:5])
+        dudxxyy = np.squeeze(preds[:, 5:6])
+        #dudxx = np.squeeze(preds[len(self.known_disp_concatenate):, 1:2])
+        #dudyy = np.squeeze(preds[len(self.known_disp_concatenate):, 2:3])
+        #dudxxxx = np.squeeze(preds[len(self.known_disp_concatenate):, 3:4])
+        #dudyyyy = np.squeeze(preds[len(self.known_disp_concatenate):, 4:5])
+        #dudxxyy = np.squeeze(preds[len(self.known_disp_concatenate):, 5:6])
 
         #print('x: ', x.shape)
         #print('u: ', u.shape)
@@ -149,7 +151,7 @@ class KirchhoffDataset(Dataset):
         f = (dudxxxx + 2 * dudxxyy + dudyyyy -
              (self.den * self.T * (omega ** 2)) / self.D * u)
 
-        L_f = f ** 2
+        L_f = f ** 2 * 30
         L_t = err_t ** 2
 
         if not self.free_edges:

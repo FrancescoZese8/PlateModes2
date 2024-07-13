@@ -76,6 +76,7 @@ class ReLoBRaLoKirchhoffLoss(KirchhoffLoss):
             (rho * alpha * self.lambdas[i].data + (1 - rho) * alpha * init_lambdas_hat[i] + (1 - alpha)
              * lambdas_hat[i]) for i in range(len(losses))]
         self.lambdas = [var.detach().requires_grad_(False) for var in new_lambdas]
+
         # Calcola la loss ponderata
         l = {key: lam * loss for lam, (key, loss) in zip(self.lambdas, losses.items())}
         #  loss = torch.sum(torch.stack(l))
