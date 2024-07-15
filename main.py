@@ -8,7 +8,7 @@ import pandas as pd
 import visualization
 import numpy as np
 
-#def main(rho, alpha, tmp):
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
@@ -22,7 +22,7 @@ lr = 0.001
 batch_size_domain = 2000
 num_hidden_layers = 4  # 4
 hidden_features = 128  # 128
-temperature = 0.1  # 1, 10e-05
+temperature = 1  # 1, 10e-05
 rho = 0.99  # 0.99, 0.5, 0.35, 0.1
 alpha = 0.9  # 0.9, 0.1, 0.1, 0.99
 
@@ -43,7 +43,7 @@ W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
 eigen_mode = [6, 7, 8, 9, 10, 11, 12]
-#eigen_mode = [8, 12]
+# eigen_mode = [8, 12]
 
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
@@ -89,10 +89,8 @@ for y in sampled_points_y:
 
 min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 20, n_d)
 
-
 def euclidean_distance(x1, y1, x2, y2):
     return np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
-
 
 i = 0
 np.random.seed(1)
@@ -131,17 +129,16 @@ for i in range(len(eigen_mode)):
     known_disp_map = dict(zip(zip(x_t, y_t), known_disp))
     known_disp = torch.tensor(known_disp)
     known_disp = known_disp.to(device)
-    #known_disp_dict[omegas[i]] = known_disp
+    # known_disp_dict[omegas[i]] = known_disp
     known_disp_concatenate.append(known_disp)
-    #print('Known disp: ', known_disp_dict[omegas[i]][0])
-
+    # print('Known disp: ', known_disp_dict[omegas[i]][0])
 
     visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
                                  image_width=n_samp_x,
                                  image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, sample_step=sample_step,
                                  dist_bound=dist_bound, n_d=n_d, size_norm=size_norm,
                                  color=color)
-#print('OMEGAS_main: ', omegas)
+# print('OMEGAS_main: ', omegas)
 known_disp_concatenate = torch.cat(known_disp_concatenate, dim=0)
 
 plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=total_length, den=den,
@@ -179,11 +176,11 @@ training.train(model=model, train_dataloader=data_loader, epochs=num_epochs, n_s
 model.eval()
 
 omega_plot_ind = [0, 1, 2, 3, 4, 5, 6]
-#omega_plot_ind = [0, 1]
+# omega_plot_ind = [0, 1]
 omegas_plot = [omegas[i] for i in omega_plot_ind]
-#omegas_plot.append(round(freqs[8] * 2 * torch.pi / scaling_factor ** 2, 6))
+# omegas_plot.append(round(freqs[8] * 2 * torch.pi / scaling_factor ** 2, 6))
 print('op: ', omegas_plot)
-NMSE = visualization.visualise_prediction(x_p, y_p, omegas_plot,  full_known_disp_dict, eigen_mode, max_norm, device,
+NMSE = visualization.visualise_prediction(x_p, y_p, omegas_plot, full_known_disp_dict, eigen_mode, max_norm, device,
                                           image_width=n_samp_x,
                                           image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, model=model,
                                           sample_step=sample_step,

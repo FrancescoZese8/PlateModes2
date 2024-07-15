@@ -2,20 +2,17 @@ import main
 
 
 def gridSearch_Relobralo():
-    tmps = [1, 10e-03]  # , 10e-05
-    rhos = [0.1, 0.5, 0.99]
-    alphas = [0.5, 0.99]
+    tmps = [1, 0.1, 0.01]  # , 10e-05
+    rhos = [0.8, 0.9]
+    alphas = [0.9]
     best_NMSE = 10e5
     best_tmp = 0
     best_rho = 0
     best_alpha = 0
 
-    for tmp in tmps:
-        for rho in rhos:
-            for alpha in alphas:
-
-                NMSE = main.main(rho, alpha, tmp)
-                print('NMSE: ', NMSE, 'rho: ', rho, 'alpha: ', alpha, 'tmp: ', tmp)
+    for rho in rhos:
+        main.main(rho)
+        #print('NMSE: ', NMSE, 'rho: ', rho, 'alpha: ', alpha, 'tmp: ', tmp)
 
 
 
