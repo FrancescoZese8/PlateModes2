@@ -14,9 +14,9 @@ def gradient(y, x, grad_outputs=None):
 
 
 def compute_derivatives(x, y, u):
-    #print('x: ', x)
-    R_u = u[:, 0]
-    I_u = u[:, 1]
+    # print('x: ', x)
+    R_u = u[:, 0:1]
+    I_u = u[:, 1:2]
     R_dudx = gradient(R_u, x)
     R_dudy = gradient(R_u, y)
 
@@ -56,7 +56,7 @@ def compute_moments(D, nue, dudxx, dudyy):
 
 
 def scale_to_target(W, H, target, n_d):
-    scaling_factor = round(target/max(W, H), 2)
+    scaling_factor = round(target / max(W, H), 2)
     W = round(W * scaling_factor, n_d)
     H = round(H * scaling_factor, n_d)
 
@@ -102,7 +102,6 @@ class KirchhoffDataset(Dataset):
         return self.total_length
 
     def training_batch(self):
-
         # x_p = np.arange(self.dist_bound, self.W + self.dist_bound, self.sample_step)
         # y_p = np.arange(self.dist_bound, self.H + self.dist_bound, self.sample_step)
         # x_index = np.random.randint(0, self.n_samp_x, size=self.batch_size_domain)
@@ -122,56 +121,30 @@ class KirchhoffDataset(Dataset):
         return x, y
 
     def compute_loss(self, x, y, preds, eval=False):
-        # governing equation loss
-        u_t = np.squeeze(preds[:len(self.x_t), 0:1])
-        #print('u_t ', u_t)
-        x = np.squeeze(x)
-        y = np.squeeze(y)
-        u = np.squeeze(preds[:, 0:1])
-        dudxx = np.squeeze(preds[:, 1:2])
-        dudyy = np.squeeze(preds[:, 2:3])
-        dudxxxx = np.squeeze(preds[:, 3:4])
-        dudyyyy = np.squeeze(preds[:, 4:5])
-        dudxxyy = np.squeeze(preds[:, 5:6])
 
-        err_t = self.known_disp - u_t
+        R_u_t = np.squeeze(preds[:len(self.x_t), 0:1])
+        I_u_t = np.squeeze(preds[:len(self.x_t), 1:2])
+        # print('u_t ', u_t)
+        R_u = np.squeeze(preds[:, 0:1])
+        I_u = np.squeeze(preds[:, 1:2])
+        R_dudxx = np.squeeze(preds[:, 2:3])
+        R_dudyy = np.squeeze(preds[:, 3:4])
+        R_dudxxxx = np.squeeze(preds[:, 4:5])
+        R_dudyyyy = np.squeeze(preds[:, 5:6])
+        R_dudxxyy = np.squeeze(preds[:, 6:7])
+        I_dudxx = np.squeeze(preds[:, 7:8])
+        I_dudyy = np.squeeze(preds[:, 8:9])
+        I_dudxxxx = np.squeeze(preds[:, 9:10])
+        I_dudyyyy = np.squeeze(preds[:, 10:11])
+        I_dudxxyy = np.squeeze(preds[:, 11:12])
+
+        err_t = (self.known_disp.real - R_u_t)# + (self.known_disp.imag - I_u_t)
         # print('u_t: ', u_t.shape, 'err_t: ', err_t.shape, 'kd: ', self.known_disp.shape)
 
-        # known_disps = [self.known_disp_map.get((round(i, 2), round(j, 2)), u[index]) for index, (i, j) in
-        # enumerate(zip(x.tolist(), y.tolist()))]
-        # known_disps = torch.tensor(known_disps).to(self.device)
-        f = (dudxxxx + 2 * dudxxyy + dudyyyy -
-             (self.den * self.T * (self.omega ** 2)) / self.D * u)
+        f = (R_dudxxxx + 2 * R_dudxxyy + R_dudyyyy - (self.den * self.T * (self.omega ** 2)) / self.D * R_u)
+             # + (I_dudxxxx + 2 * I_dudxxyy + I_dudyyyy - (self.den * self.T * (self.omega ** 2)) / self.D * I_u)
 
-        L_f = f ** 2
+        L_f = f ** 2*0
         L_t = err_t ** 2
 
-        if not self.free_edges:
-            # determine which points are on the boundaries of the domain
-            # if a point is on either of the boundaries, its value is 1 and 0 otherwise
-            x_lower = torch.where(x <= EPS, torch.tensor(1.0, device=self.device),
-                                  torch.tensor(0.0, device=self.device))  # CUDA
-            x_upper = torch.where(x >= self.W - EPS, torch.tensor(1.0, device=self.device),
-                                  torch.tensor(0.0, device=self.device))
-            y_lower = torch.where(y <= EPS, torch.tensor(1.0, device=self.device),
-                                  torch.tensor(0.0, device=self.device))
-            y_upper = torch.where(y >= self.H - EPS, torch.tensor(1.0, device=self.device),
-                                  torch.tensor(0.0, device=self.device))
-            # x_lower = torch.where(x <= EPS, torch.tensor(1.0), torch.tensor(0.0))
-            # x_upper = torch.where(x >= self.W - EPS, torch.tensor(1.0), torch.tensor(0.0))
-            # y_lower = torch.where(y <= EPS, torch.tensor(1.0), torch.tensor(0.0))
-            # y_upper = torch.where(y >= self.H - EPS, torch.tensor(1.0), torch.tensor(0.0))
-
-            L_b0 = torch.mul((x_lower + x_upper + y_lower + y_upper), u) ** 2
-
-            # compute 2nd order boundary condition loss
-            mx, my = compute_moments(self.D, self.nue, dudxx, dudyy)
-            L_b2 = torch.mul((x_lower + x_upper), mx) ** 2 + torch.mul((y_lower + y_upper), my) ** 2
-
-            if eval:
-                L_u = torch.zeros(self.batch_size_domain + 4 * self.batch_size_boundary)  # TODO
-
-                return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_u': L_u, 'L_t': L_t}
-            return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_t': L_t}
-        else:
-            return {'L_f': L_f, 'L_t': L_t}
+        return {'L_f': L_f, 'L_t': L_t}
