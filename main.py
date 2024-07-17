@@ -12,22 +12,22 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 500  # 500
+num_epochs = 300  # 500
 n_step = 50
-num_known_points = 10
-size_norm = 10
+num_known_points = 12  # 12
+size_norm = 10  # 10
 batch_size = 1
 total_length = 1
 lr = 0.001
-batch_size_domain = 2000
-num_hidden_layers = 4  # 4
-hidden_features = 128  # 128
-temperature = 1  # 1, 10e-05
-rho = 0.99  # 0.99, 0.5, 0.35, 0.1
-alpha = 0.9  # 0.9, 0.1, 0.1, 0.99
+batch_size_domain = 2000  # 2000
+num_hidden_layers = 2  # 2
+hidden_features = 256  # 256
+temperature = 1  # 1
+rho = 0.99  # 0.99
+alpha = 0.9  # 0.9
 
 steps_til_summary = 10
-opt_model = 'silu'  # mish
+opt_model = 'sine'
 mode = 'pinn'
 clip_grad = 1.0
 use_lbfgs = False
@@ -42,8 +42,8 @@ W_p, H_p = W, H
 W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
-eigen_mode = [6, 7, 8, 9, 10, 11, 12]
-# eigen_mode = [8, 12]
+eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 14]
+#eigen_mode = [22]
 
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
@@ -175,8 +175,8 @@ training.train(model=model, train_dataloader=data_loader, epochs=num_epochs, n_s
 
 model.eval()
 
-omega_plot_ind = [0, 1, 2, 3, 4, 5, 6]
-# omega_plot_ind = [0, 1]
+omega_plot_ind = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+#omega_plot_ind = [0]
 omegas_plot = [omegas[i] for i in omega_plot_ind]
 # omegas_plot.append(round(freqs[8] * 2 * torch.pi / scaling_factor ** 2, 6))
 print('op: ', omegas_plot)

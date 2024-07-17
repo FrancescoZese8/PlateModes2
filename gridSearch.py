@@ -1,6 +1,12 @@
 import main
 
 
+def gridsearch_Layer():
+    lays = [4, 3, 2]
+    for lay in lays:
+        main.main(lay)
+
+
 def gridSearch_Relobralo():
     tmps = [1, 0.1, 0.01]  # , 10e-05
     rhos = [0.8, 0.9]
@@ -10,10 +16,9 @@ def gridSearch_Relobralo():
     best_rho = 0
     best_alpha = 0
 
-    for rho in rhos:
-        main.main(rho)
-        #print('NMSE: ', NMSE, 'rho: ', rho, 'alpha: ', alpha, 'tmp: ', tmp)
-
+    for tmp in tmps:
+        main.main(tmp)
+        # print('NMSE: ', NMSE, 'rho: ', rho, 'alpha: ', alpha, 'tmp: ', tmp)
 
 
 def gridSearch_modes():
