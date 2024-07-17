@@ -138,13 +138,14 @@ class KirchhoffDataset(Dataset):
         I_dudyyyy = np.squeeze(preds[:, 10:11])
         I_dudxxyy = np.squeeze(preds[:, 11:12])
 
-        err_t = (self.known_disp.real - R_u_t)# + (self.known_disp.imag - I_u_t)
+        err_t = (self.known_disp.real - R_u_t) #+ (self.known_disp.imag - I_u_t)
+        #err_t = torch.abs(self.known_disp) - torch.sqrt(R_u_t**2 + I_u_t**2)
         # print('u_t: ', u_t.shape, 'err_t: ', err_t.shape, 'kd: ', self.known_disp.shape)
 
-        f = (R_dudxxxx + 2 * R_dudxxyy + R_dudyyyy - (self.den * self.T * (self.omega ** 2)) / self.D * R_u)
-             # + (I_dudxxxx + 2 * I_dudxxyy + I_dudyyyy - (self.den * self.T * (self.omega ** 2)) / self.D * I_u)
+        f = ((R_dudxxxx + 2 * R_dudxxyy + R_dudyyyy - (self.den * self.T * (self.omega ** 2)) / self.D * R_u) +
+             (I_dudxxxx + 2 * I_dudxxyy + I_dudyyyy - (self.den * self.T * (self.omega ** 2)) / self.D * I_u))
 
-        L_f = f ** 2*0
+        L_f = f ** 2
         L_t = err_t ** 2
 
         return {'L_f': L_f, 'L_t': L_t}

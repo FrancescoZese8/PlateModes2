@@ -14,7 +14,7 @@ print('device: ', device)
 
 num_epochs = 50
 n_step = 50
-num_known_points = 25
+num_known_points = 10
 size_norm = 10
 batch_size = 1
 total_length = 1
