@@ -12,7 +12,7 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 50
+num_epochs = 150
 n_step = 50
 num_known_points = 10
 size_norm = 10
