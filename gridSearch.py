@@ -2,7 +2,7 @@ import main
 
 
 def gridsearch_Layer():
-    lays = [4, 3, 2]
+    lays = [2, 3, 4]
     for lay in lays:
         main.main(lay)
 
@@ -54,4 +54,4 @@ def gridSearch_epochs():
     print('best_steps: ', best_steps)
 
 
-gridSearch_Relobralo()
+gridsearch_Layer()

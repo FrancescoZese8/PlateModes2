@@ -8,13 +8,13 @@ import pandas as pd
 import visualization
 import numpy as np
 
-
+#def main(lay):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 300  # 500
+num_epochs = 1000  # 500
 n_step = 50
-num_known_points = 12  # 12
+num_known_points = 10  # 12
 size_norm = 10  # 10
 batch_size = 1
 total_length = 1
@@ -43,7 +43,7 @@ W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
 eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 14]
-#eigen_mode = [22]
+#eigen_mode = [8]
 
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
@@ -87,7 +87,7 @@ for y in sampled_points_y:
         x_t.append(x)
         y_t.append(y)'''
 
-min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 20, n_d)
+min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 10, n_d)
 
 def euclidean_distance(x1, y1, x2, y2):
     return np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
