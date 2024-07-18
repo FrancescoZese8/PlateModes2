@@ -12,9 +12,9 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 300
+num_epochs = 50
 n_step = 50
-num_known_points = 15
+num_known_points = 10
 size_norm = 10
 batch_size = 1
 total_length = 1
@@ -42,7 +42,7 @@ W_p, H_p = W, H
 W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
-eigen_mode = 22
+eigen_mode = 9
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
