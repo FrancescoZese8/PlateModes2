@@ -12,14 +12,14 @@ import re
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 50
+num_epochs = 150
 n_step = 50
 num_known_points = 10
 size_norm = 10
 batch_size = 1
 total_length = 1
 lr = 0.001
-batch_size_domain = 1000
+batch_size_domain = 2000
 num_hidden_layers = 2
 hidden_features = 32
 temperature = 0.1  # 10e-05
@@ -27,7 +27,7 @@ rho = 0.1  # 0.99, 0.5, 0.35, 0.1
 alpha = 0.99  # 0.9, 0.1, 0.1, 0.99
 
 steps_til_summary = 10
-opt_model = 'silu'  # mish
+opt_model = 'sine'  # mish
 mode = 'pinn'
 clip_grad = 1.0
 use_lbfgs = False
@@ -37,12 +37,12 @@ free_edges = True
 color = 'viridis'  # bwr
 
 n_d = 4
-W, H, T, E, nue, den = 0.20, 0.35, 0.005, 10e6, 0.28, 420
+W, H, T, E, nue, den = 0.20, 0.35, 0.005, 70e6, 0.33, 2700
 W_p, H_p = W, H
 W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
-eigen_mode = 7
+eigen_mode = 10
 '''freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
@@ -113,6 +113,7 @@ while i < num_known_points:
         if attempts >= 100:
             x_t, y_t = [], []
             i = 0
+            print("Attempts > 100")
             break
 
 # x_t = x_p
