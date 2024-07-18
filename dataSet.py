@@ -138,15 +138,18 @@ class KirchhoffDataset(Dataset):
         I_dudyyyy = np.squeeze(preds[:, 10:11])
         I_dudxxyy = np.squeeze(preds[:, 11:12])
 
-        L_t = (self.known_disp.real - R_u_t)**2 + (self.known_disp.imag - I_u_t)**2
+        L_t = (self.known_disp.real - R_u_t)**2 #+ (self.known_disp.imag - I_u_t)**2
         #err_t = torch.abs(self.known_disp) - torch.sqrt(R_u_t**2 + I_u_t**2)
         # print('u_t: ', u_t.shape, 'err_t: ', err_t.shape, 'kd: ', self.known_disp.shape)
 
         #f = ((R_dudxxxx + 2 * R_dudxxyy + R_dudyyyy - (self.den * self.T * (self.omega ** 2)) / self.D * R_u) +
              #(I_dudxxxx + 2 * I_dudxxyy + I_dudyyyy - (self.den * self.T * (self.omega ** 2)) / self.D * I_u))
+        u = R_u #+ 1j * I_u
+        dudxxxx = R_dudxxxx #+ 1j * I_dudxxxx
+        dudxxyy = R_dudxxyy #+ 1j * I_dudxxyy
+        dudyyyy = R_dudyyyy #+ 1j * I_dudyyyy
 
-        L_f = ((R_dudxxxx + 2 * R_dudxxyy + R_dudyyyy - (self.den * self.T * (self.omega ** 2)) / self.D * R_u)**2 +
-               (I_dudxxxx + 2 * I_dudxxyy + I_dudyyyy - (self.den * self.T * (self.omega ** 2)) / self.D * I_u)**2)
+        L_f = torch.abs((dudxxxx + 2 * dudxxyy + dudyyyy - (self.den * self.T * (self.omega ** 2)) / self.D * u)**2)
         #L_f = f ** 2
         #L_t = err_t ** 2
 
