@@ -9,10 +9,11 @@ import visualization
 import numpy as np
 import re
 
+# def main(md):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 150
+num_epochs = 300
 n_step = 50
 num_known_points = 10
 size_norm = 10
@@ -22,7 +23,7 @@ lr = 0.001
 batch_size_domain = 2000
 num_hidden_layers = 2
 hidden_features = 32
-temperature = 1  # 10e-05
+temperature = 0.1  # 10e-05
 rho = 0.9  # 0.99, 0.5, 0.35, 0.1
 alpha = 0.99  # 0.9, 0.1, 0.1, 0.99
 
@@ -36,27 +37,29 @@ max_epochs_without_improvement = 50
 free_edges = True
 color = 'viridis'  # bwr
 
-n_d = 4
-W, H, T, E, nue, den = 0.20, 0.35, 0.005, 68e6, 0.36, 2700
-#E = E * (1 + 1j*0.01)
+n_d = 6
+W, H, T, E, nue, den = 0.20, 0.35, 0.005, 10e6, 0.28, 420
+E = E * (1 + 1j * 0.1)
 W_p, H_p = W, H
 W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
-eigen_mode = 9
+eigen_mode = 12
 '''freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
          165.3, ]  # ViolinPlateFOD3'''
-#freqs = [None, None, None, None, None, None, None, 128.14, 137.46, 309.45, 354.53]  # TODO ViolinPlateWD
-freqs = [None, None, None, None, None, None, None, 128.16, 137.47, 309.46, 354.54]
+# freqs = [None, None, None, None, None, None, 128.14, 137.46, 309.45, 354.53]  # TODO ViolinPlateWD
+freqs = [None, None, None, None, None, None, 3.9061, 4.2711, 9.5587, 10.801, 12.269, 15.147, 17.002, 21.03,
+         22.462, 27.446]  # TODO ViolinPlateWD4
 omega = freqs[eigen_mode] * 2 * torch.pi
 print('freq: ', freqs[eigen_mode])
 omega = omega / scaling_factor ** 2
+n_samp_x, n_samp_y = 20, 35
 
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 
-df = pd.read_csv('ViolinPlateWD2.csv', sep=';', dtype=str)
+df = pd.read_csv('ViolinPlateWD4.csv', sep=';', dtype=str)
 
 
 def to_complex(val):
@@ -73,9 +76,7 @@ def to_complex(val):
 
 
 df_numeric = df.applymap(to_complex)
-#print('DF: ', df_numeric.dtypes)
-
-n_samp_x, n_samp_y = 20, 35
+# print('DF: ', df_numeric.dtypes)
 
 sample_step = W / n_samp_x
 if H / n_samp_y != sample_step:
@@ -125,6 +126,7 @@ complex_array = np.array(df_numeric.values.tolist(), dtype=np.complex128)
 full_known_disp = torch.tensor(complex_array, dtype=torch.complex128)
 
 full_known_disp = full_known_disp[:, eigen_mode]
+print('FKD: ', full_known_disp[0])
 print('Dataset length: ', len(full_known_disp))
 print('x_p length: ', len(x_p))
 magnitude = torch.abs(full_known_disp)
@@ -134,12 +136,12 @@ max_norm = 1
 normalized_magnitude = (magnitude - min_val) / (max_val - min_val) * max_norm
 phase = torch.angle(full_known_disp)
 full_known_disp = normalized_magnitude * torch.exp(1j * phase)
+print('FKD_NORM: ', full_known_disp[0])
 full_known_disp_map = dict(zip(zip(x_p, y_p), full_known_disp))
 known_disp = [full_known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for index, (i, j) in
               enumerate(zip(x_t, y_t))]
 known_disp_map = dict(zip(zip(x_t, y_t), known_disp))
 known_disp = torch.tensor(known_disp)
-
 
 visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
                              image_width=n_samp_x,

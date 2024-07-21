@@ -9,10 +9,10 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
                    image_height, H, W, H_p, W_p, sample_step, dist_bound, n_d, size_norm, color):
     known_disps = [known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for index, (i, j) in
                    enumerate(zip(x_p, y_p))]
-    kdp = np.reshape(np.real(known_disps), (image_height, image_width))
+    kdp = np.reshape(np.imag(known_disps), (image_height, image_width))
 
     # Converti full_known_disp in modulo
-    fkdp = np.reshape(np.real(full_known_disp), (image_height, image_width))
+    fkdp = np.reshape(np.imag(full_known_disp), (image_height, image_width))
 
     X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step),
                        np.arange(dist_bound, H + dist_bound, sample_step))
@@ -62,11 +62,14 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
 
     c = {'coords': torch.cat([x, y], dim=-1).float()}
     pred = model(c)['model_out']
-    u_pred, dudxx, dudyy = pred[:, 0:1], pred[:, 2:3], pred[:, 3:4]
-    u_real = np.reshape(np.real(full_known_disp.numpy()), (image_height, image_width))
+    u_pred_R, u_pred_I, dudxx, dudyy = pred[:, 0:1], pred[:, 1:2], pred[:, 2:3], pred[:, 3:4]
+    u_real_R = np.reshape(np.real(full_known_disp.numpy()), (image_height, image_width))
+    u_real_I = np.reshape(np.imag(full_known_disp.numpy()), (image_height, image_width))
 
-    u_pred = u_pred.cpu().detach().numpy().reshape(image_height, image_width)  # CUDA
-    NMSE = round((np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2), 5)
+    u_pred_R = u_pred_R.cpu().detach().numpy().reshape(image_height, image_width)  # CUDA
+    u_pred_I = u_pred_I.cpu().detach().numpy().reshape(image_height, image_width)  # CUDA
+    NMSE = round((np.linalg.norm(u_real_R - u_pred_R) ** 2) / (np.linalg.norm(u_real_R) ** 2), 5)
+    NMSE_I = round((np.linalg.norm(u_real_I - u_pred_I) ** 2) / (np.linalg.norm(u_real_I) ** 2), 5)
 
     dudy = dudyy.cpu().detach().numpy().reshape(image_height, image_width)
     dudx = dudxx.cpu().detach().numpy().reshape(image_height, image_width)
@@ -78,7 +81,7 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
     # Primo plot (plot 3D)
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(X, Y, u_pred, cmap=color)
+    ax.plot_surface(X, Y, u_pred_I, cmap=color) #
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
@@ -91,12 +94,12 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
     # Secondo plot (subplot con due immagini)
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
 
-    im1 = axes[0].imshow(u_pred, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
+    im1 = axes[0].imshow(u_pred_I, extent=(0, W_p, 0, H_p), origin='lower', cmap=color) #
     axes[0].set_xlabel('X')
     axes[0].set_ylabel('Y')
     axes[0].set_title('Predicted Displacement mode: {}'.format(eigen_mode))
 
-    im2 = axes[1].imshow((u_pred - u_real) ** 2, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
+    im2 = axes[1].imshow((u_pred_I - u_real_I) ** 2, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)#
     axes[1].set_xlabel('X')
     axes[1].set_ylabel('Y')
     axes[1].set_title('Squared Error Displacement: {}'.format(NMSE))
@@ -126,6 +129,8 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
     plt.title('dudxxxx')
     plt.colorbar(label='Increment')
     plt.show()
+
+    print('NMSE_I: ', NMSE_I)  # TODO
 
     return NMSE
 

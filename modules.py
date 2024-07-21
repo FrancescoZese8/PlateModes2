@@ -74,7 +74,7 @@ class FCBlock(MetaModule):
 
         for i in range(num_hidden_layers):
             self.net.append(MetaSequential(
-                BatchLinear(hidden_features, hidden_features, bias=True), nl  # nn.BatchNorm1d(hidden_features),
+                BatchLinear(hidden_features,  hidden_features, bias=True), nl  # nn.BatchNorm1d(hidden_features),
             ))
 
         if outermost_linear:
@@ -146,6 +146,10 @@ class PINNet(nn.Module):
         x.requires_grad_(True)
         y.requires_grad_(True)
         o = self.net(torch.cat((x, y), dim=-1))
+
+        '''dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
+        output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)'''
+
         (R_dudxx, R_dudyy, R_dudxxxx, R_dudyyyy, R_dudxxyy, I_dudxx, I_dudyy, I_dudxxxx,
          I_dudyyyy, I_dudxxyy) = compute_derivatives(x, y, o)
         output = torch.cat((o, R_dudxx, R_dudyy, R_dudxxxx, R_dudyyyy, R_dudxxyy,
@@ -236,7 +240,7 @@ def sine_init(m):
         if hasattr(m, 'weight'):
             num_input = m.weight.size(-1)
             # See supplement Sec. 1.5 for discussion of factor 30
-            m.weight.uniform_(-np.sqrt(6 / num_input) / 30, np.sqrt(6 / num_input) / 30)
+            m.weight.uniform_(-np.sqrt(6 / num_input) / 5, np.sqrt(6 / num_input) / 5)
 
 
 def first_layer_sine_init(m):

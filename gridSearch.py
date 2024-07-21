@@ -33,12 +33,10 @@ def gridSearch_modes():
     # 7: 0.0094905 / 8: 0.012216 / 9: 0.016826 / 11: 0.03027 / 13: 0.030792 / 14: 0.033438 / 18: 0.057536
     # /20: 0.06447 / 22: 0.074002 / 23: 0.078311 / 24: 0.082339 / 25: 0.0975 / 27: 0.099372 / 30: 0.10527 / 32: 0.13573 / 33: 0.13573
     # /36: 0.14482 / 39: 0.14971
-    mode = [22, 23, 26]
+    mode = [9, 10, 11, 12]
     n_p = [10, 15]
     for m in mode:
-        for n in n_p:
-            NMSE = main.main(m, n)
-            print('NMSE: ', NMSE, 'mode: ', m, 'n_p: ', n)
+        main.main(m)
 
 
 def gridSearch_epochs():
@@ -62,4 +60,4 @@ def gridSearch_epochs():
     print('best_steps: ', best_steps)
 
 
-gridSearch_Relobralo()
+gridSearch_modes()

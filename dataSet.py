@@ -12,6 +12,24 @@ def gradient(y, x, grad_outputs=None):
     grad = torch.autograd.grad(y, [x], grad_outputs=[grad_outputs], create_graph=True)[0]
     return grad
 
+'''def compute_derivatives(x, y, u):
+
+    dudx = gradient(u, x)
+    dudy = gradient(u, y)
+
+    dudxx = gradient(dudx, x)
+    dudyy = gradient(dudy, y)
+
+    dudxxx = gradient(dudxx, x)
+    dudxxy = gradient(dudxx, y)
+    dudyyy = gradient(dudyy, y)
+
+    dudxxxx = gradient(dudxxx, x)
+    dudxxyy = gradient(dudxxy, y)
+    dudyyyy = gradient(dudyyy, y)
+
+
+    return dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy'''
 
 def compute_derivatives(x, y, u):
     # print('x: ', x)
@@ -138,19 +156,31 @@ class KirchhoffDataset(Dataset):
         I_dudyyyy = np.squeeze(preds[:, 10:11])
         I_dudxxyy = np.squeeze(preds[:, 11:12])
 
-        L_t = (self.known_disp.real - R_u_t)**2 #+ (self.known_disp.imag - I_u_t)**2
+        L_t = (self.known_disp.real - R_u_t)**2 + (self.known_disp.imag - I_u_t)**2
         #err_t = torch.abs(self.known_disp) - torch.sqrt(R_u_t**2 + I_u_t**2)
         # print('u_t: ', u_t.shape, 'err_t: ', err_t.shape, 'kd: ', self.known_disp.shape)
 
         #f = ((R_dudxxxx + 2 * R_dudxxyy + R_dudyyyy - (self.den * self.T * (self.omega ** 2)) / self.D * R_u) +
              #(I_dudxxxx + 2 * I_dudxxyy + I_dudyyyy - (self.den * self.T * (self.omega ** 2)) / self.D * I_u))
-        u = R_u #+ 1j * I_u
-        dudxxxx = R_dudxxxx #+ 1j * I_dudxxxx
-        dudxxyy = R_dudxxyy #+ 1j * I_dudxxyy
-        dudyyyy = R_dudyyyy #+ 1j * I_dudyyyy
+        u = R_u + 1j * I_u
+        dudxxxx = R_dudxxxx + 1j * I_dudxxxx
+        dudxxyy = R_dudxxyy + 1j * I_dudxxyy
+        dudyyyy = R_dudyyyy + 1j * I_dudyyyy
 
         L_f = torch.abs((dudxxxx + 2 * dudxxyy + dudyyyy - (self.den * self.T * (self.omega ** 2)) / self.D * u)**2)
         #L_f = f ** 2
         #L_t = err_t ** 2
+
+        '''u_t = np.squeeze(preds[:len(self.x_t), 0:1])
+        u = np.squeeze(preds[:, 0:1])
+        dudxxxx = np.squeeze(preds[:, 3:4])
+        dudyyyy = np.squeeze(preds[:, 4:5])
+        dudxxyy = np.squeeze(preds[:, 5:6])
+
+        err_t = self.known_disp.real - u_t
+        f = ((dudxxxx + 2 * dudxxyy + dudyyyy) -
+             (self.den * self.T * (self.omega ** 2)) / self.D * u)
+        L_f = f ** 2
+        L_t = err_t ** 2'''
 
         return {'L_f': L_f, 'L_t': L_t}
