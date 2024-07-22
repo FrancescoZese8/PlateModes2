@@ -151,7 +151,7 @@ class KirchhoffDataset(Dataset):
         f = (dudxxxx + 2 * dudxxyy + dudyyyy -
              (self.den * self.T * (omega ** 2)) / self.D * u)
 
-        L_f = f ** 2 * 30
+        L_f = f ** 2
         L_t = err_t ** 2
 
         if not self.free_edges:

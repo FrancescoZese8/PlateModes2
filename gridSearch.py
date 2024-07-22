@@ -2,7 +2,7 @@ import main
 
 
 def gridsearch_Layer():
-    lays = [2, 3, 4]
+    lays = [0.5, 0.9, 0.99]
     for lay in lays:
         main.main(lay)
 

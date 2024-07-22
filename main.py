@@ -8,21 +8,21 @@ import pandas as pd
 import visualization
 import numpy as np
 
-#def main(lay):
+# def main(lay):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 1000  # 500
+num_epochs = 200  # 500
 n_step = 50
-num_known_points = 10  # 12
+num_known_points = 12  # 12
 size_norm = 10  # 10
 batch_size = 1
 total_length = 1
 lr = 0.001
-batch_size_domain = 2000  # 2000
+batch_size_domain = 200  # 2000
 num_hidden_layers = 2  # 2
-hidden_features = 256  # 256
-temperature = 1  # 1
+hidden_features = 128  # 256
+temperature = 0.01  # 1
 rho = 0.99  # 0.99
 alpha = 0.9  # 0.9
 
@@ -35,15 +35,15 @@ relo = True
 max_epochs_without_improvement = 50
 free_edges = True
 color = 'viridis'  # bwr
-n_d = 4  #
+n_d = 6  #
 
 W, H, T, E, nue, den = 0.20, 0.35, 0.005, 10e6, 0.28, 420
 W_p, H_p = W, H
 W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)
 print('W, H, scaling_factor: ', W, H, scaling_factor)
 
-eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 14]
-#eigen_mode = [8]
+# eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+eigen_mode = [14]
 
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
@@ -76,21 +76,28 @@ for i in range(n_samp_y):
 x_t = []
 y_t = []
 
-'''
+'''sampled_points_x = [0.05, 0.15, 0.25]
+sampled_points_x = [round(x * scaling_factor, n_d) for x in sampled_points_x]
+sampled_points_y = [0.05, 0.15, 0.25, 0.35]
+sampled_points_y = [round(y * scaling_factor, n_d) for y in sampled_points_y]
+
 for y in sampled_points_y:
     for x in sampled_points_x:
         x_t.append(x)
         y_t.append(y)'''
 
-'''for y in sampled_points:
-    for x in sampled_points:
-        x_t.append(x)
-        y_t.append(y)'''
+for i in range(4):
+    for j in range(3):
+        x_t.append(round(j * sample_step*8 + dist_bound*3, n_d))
+        y_t.append(round(i * sample_step*10 + dist_bound*3, n_d))
 
-min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 10, n_d)
+
+
+'''min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 10, n_d)
 
 def euclidean_distance(x1, y1, x2, y2):
     return np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+
 
 i = 0
 np.random.seed(1)
@@ -108,7 +115,7 @@ while i < num_known_points:
         if attempts >= 100:
             x_t, y_t = [], []
             i = 0
-            break
+            break'''
 
 # x_t = x_p
 # y_t = y_p
@@ -175,8 +182,8 @@ training.train(model=model, train_dataloader=data_loader, epochs=num_epochs, n_s
 
 model.eval()
 
-omega_plot_ind = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-#omega_plot_ind = [0]
+# omega_plot_ind = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+omega_plot_ind = [0]
 omegas_plot = [omegas[i] for i in omega_plot_ind]
 # omegas_plot.append(round(freqs[8] * 2 * torch.pi / scaling_factor ** 2, 6))
 print('op: ', omegas_plot)

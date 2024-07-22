@@ -28,13 +28,16 @@ class BatchLinear(nn.Linear, MetaModule):
         return output
 
 
+omega_z = 5
+
+
 class Sine(nn.Module):
     def __init(self):
         super().__init__()
 
     def forward(self, input):
         # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of factor 30
-        return torch.sin(5 * input)
+        return torch.sin(omega_z * input)
 
 
 class FCBlock(MetaModule):
@@ -148,10 +151,10 @@ class PINNet(nn.Module):
         omega = omega[..., None]
         x.requires_grad_(True)
         y.requires_grad_(True)
-        #batch_size = x.size(0)
-        #print('x: ', x.shape)
-        #print('omega: ', omega.shape)
-        #omega = omega.expand(batch_size, 1)
+        # batch_size = x.size(0)
+        # print('x: ', x.shape)
+        # print('omega: ', omega.shape)
+        # omega = omega.expand(batch_size, 1)
         o = self.net(torch.cat((x, y, omega), dim=-1))
         dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
         output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)
@@ -241,7 +244,7 @@ def sine_init(m):
         if hasattr(m, 'weight'):
             num_input = m.weight.size(-1)
             # See supplement Sec. 1.5 for discussion of factor 30
-            m.weight.uniform_(-np.sqrt(6 / num_input) / 5, np.sqrt(6 / num_input) / 5)
+            m.weight.uniform_(-np.sqrt(6 / num_input) / omega_z, np.sqrt(6 / num_input) / omega_z)
 
 
 def first_layer_sine_init(m):
