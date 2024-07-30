@@ -2,23 +2,55 @@ import main
 
 
 def gridsearch_Layer():
-    lays = [0.5, 0.9, 0.99]
+    best_lay = 0
+    best_neuron = 0
+    best_NMSE = 10e3
+    lays = [2]
+    neurons = [200, 256, 300, 400]
     for lay in lays:
-        main.main(lay)
+        for neuron in neurons:
+            mean_NMSE = main.main(lay, neuron)
+            if mean_NMSE < best_NMSE:
+                best_NMSE = mean_NMSE
+                best_neuron = neuron
+    print('Best NMSE: ', best_NMSE, '\nBest neuron: ', best_neuron)
+
+def gridsearch_Lambdas():
+    best_NMSE = 10e3
+    best_lam_f = 0
+    best_lam_t = 0
+    lams_f = [1, 5, 10, 50]
+    lams_t = [1, 5, 10, 50]
+    for lam_f in lams_f:
+        for lam_t in lams_t:
+            NMSE = main.main(lam_f, lam_f)
+            if NMSE < best_NMSE:
+                best_NMSE = NMSE
+                best_lam_f = lam_f
+                best_lam_t = lam_t
+    print('NMSE: ', best_NMSE, 'best_lam_f: ', best_lam_f, 'best_lam_t: ', best_lam_t)
 
 
 def gridSearch_Relobralo():
-    tmps = [1, 0.1, 0.01]  # , 10e-05
-    rhos = [0.8, 0.9]
-    alphas = [0.9]
+    tmps = [0.1, 0.01, 0.001, 10e-05]  # , 10e-05
+    rhos = [0.99, 0.999]
+    alphas = [0.9, 0.99]
     best_NMSE = 10e5
     best_tmp = 0
     best_rho = 0
     best_alpha = 0
 
     for tmp in tmps:
-        main.main(tmp)
-        # print('NMSE: ', NMSE, 'rho: ', rho, 'alpha: ', alpha, 'tmp: ', tmp)
+        for rho in rhos:
+            for alpha in alphas:
+                NMSE = main.main(tmp, rho, alpha)
+                if NMSE < best_NMSE:
+                    best_NMSE = NMSE
+                    best_tmp = tmp
+                    best_rho = rho
+                    best_alpha = alpha
+
+    print('NMSE: ', best_NMSE, 'best_rho: ', best_rho, 'best_alpha: ', best_alpha, 'best_tmp: ', best_tmp)
 
 
 def gridSearch_modes():
@@ -54,4 +86,4 @@ def gridSearch_epochs():
     print('best_steps: ', best_steps)
 
 
-gridsearch_Layer()
+gridSearch_Relobralo()

@@ -133,6 +133,7 @@ class PINNet(nn.Module):
         self.mode = mode
         self.num_hidden_layers = num_hidden_layers
         self.hidden_features = hidden_features
+        #self.DD = nn.Parameter(torch.tensor(1, dtype=torch.float32))  # TODO
         self.net = FCBlock(in_features=in_features, out_features=out_features, num_hidden_layers=num_hidden_layers,
                            hidden_features=hidden_features, outermost_linear=True, nonlinearity=type,
                            weight_init=None)
@@ -156,8 +157,8 @@ class PINNet(nn.Module):
         # print('omega: ', omega.shape)
         # omega = omega.expand(batch_size, 1)
         o = self.net(torch.cat((x, y, omega), dim=-1))
-        dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
-        output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)
+        dudxy, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
+        output = torch.cat((o, dudxy, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)
         return {'model_in': coords, 'model_out': output}
 
 

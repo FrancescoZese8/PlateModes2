@@ -9,7 +9,7 @@ EPS = 1e-6
 def gradient(y, x, grad_outputs=None):
     if grad_outputs is None:
         grad_outputs = torch.ones_like(y)
-    grad = torch.autograd.grad(y, [x], grad_outputs=grad_outputs, create_graph=True)[0]
+    grad = torch.autograd.grad(y, [x], grad_outputs=grad_outputs, create_graph=True, retain_graph=True)[0]
     return grad
 
 
@@ -17,6 +17,7 @@ def compute_derivatives(x, y, u):
     dudx = gradient(u, x)
     dudy = gradient(u, y)
 
+    dudxy = gradient(dudx, y)
     dudxx = gradient(dudx, x)
     dudyy = gradient(dudy, y)
 
@@ -28,7 +29,7 @@ def compute_derivatives(x, y, u):
     dudxxyy = gradient(dudxxy, y)
     dudyyyy = gradient(dudyyy, y)
 
-    return dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy
+    return dudxy, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy
 
 
 def compute_moments(D, nue, dudxx, dudyy):
@@ -50,7 +51,7 @@ class KirchhoffDataset(Dataset):
 
     def __init__(self, T, nue, E, D, H, W, total_length, den: float, omegas, batch_size_domain, known_disp_concatenate,
                  x_t, y_t, max_norm, free_edges, device, sample_step, dist_bound, n_samp_x,
-                 n_samp_y):
+                 n_samp_y, model):
         self.T = T
         self.nue = nue
         self.E = E
@@ -67,11 +68,12 @@ class KirchhoffDataset(Dataset):
         self.max_norm = max_norm
         self.free_edges = free_edges
         self.device = device
-        self.num_loss = 3
+        self.num_loss = 2
         self.sample_step = sample_step
         self.dist_bound = dist_bound
         self.n_samp_x = n_samp_x
         self.n_samp_y = n_samp_y
+        self.model = model
 
     def __getitem__(self, item):
         x, y, omega = self.training_batch()
@@ -91,8 +93,10 @@ class KirchhoffDataset(Dataset):
         #y_index = np.random.randint(0, self.n_samp_y, size=self.batch_size_domain)
         #x_random = torch.tensor(x_p[x_index], dtype=torch.float)
         #y_random = torch.tensor(y_p[y_index], dtype=torch.float)
+
         x_random = torch.rand((self.batch_size_domain,)) * self.W
         y_random = torch.rand((self.batch_size_domain,)) * self.H
+
 
         x_t = np.tile(self.x_t, len(self.omegas))
         x_t = torch.tensor(x_t, dtype=torch.float32)
@@ -130,11 +134,12 @@ class KirchhoffDataset(Dataset):
         #print('u: ', u.shape)
         #omega = omega[len(self.known_disp_concatenate):]
 
-        dudxx = np.squeeze(preds[:, 1:2])
-        dudyy = np.squeeze(preds[:, 2:3])
-        dudxxxx = np.squeeze(preds[:, 3:4])
-        dudyyyy = np.squeeze(preds[:, 4:5])
-        dudxxyy = np.squeeze(preds[:, 5:6])
+        dudxy = np.squeeze(preds[:, 1:2])
+        dudxx = np.squeeze(preds[:, 2:3])
+        dudyy = np.squeeze(preds[:, 3:4])
+        dudxxxx = np.squeeze(preds[:, 4:5])
+        dudyyyy = np.squeeze(preds[:, 5:6])
+        dudxxyy = np.squeeze(preds[:, 6:7])
         #dudxx = np.squeeze(preds[len(self.known_disp_concatenate):, 1:2])
         #dudyy = np.squeeze(preds[len(self.known_disp_concatenate):, 2:3])
         #dudxxxx = np.squeeze(preds[len(self.known_disp_concatenate):, 3:4])
@@ -146,11 +151,13 @@ class KirchhoffDataset(Dataset):
         #print('omega: ', omega.shape)
         #print('dudxxxx: ', dudxxxx.shape)
         #print('kdc: ', self.known_disp_concatenate.shape)
-        err_t = self.known_disp_concatenate - u_t
+        err_t = (self.known_disp_concatenate - u_t)
 
-        f = (dudxxxx + 2 * dudxxyy + dudyyyy -
-             (self.den * self.T * (omega ** 2)) / self.D * u)
+        f = (dudxxxx + 2 * dudxxyy + dudyyyy - (self.den * self.T * (omega ** 2)) / self.D * u)
 
+        #strain_energy = self.D/2 * (dudxx**2 + dudyy**2 - 2 * (1 - self.nue) * (dudxx * dudyy - dudxy**2))
+        #strain_energy = (dudxx * dudyy - dudxy**2)
+        #L_e = strain_energy ** 2
         L_f = f ** 2
         L_t = err_t ** 2
 

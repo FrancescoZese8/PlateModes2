@@ -53,7 +53,8 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
 def visualise_prediction(x_p, y_p, omegas_plot, full_known_disp_dict, eigen_mode, max_norm, device, image_width,
                          image_height, H, W, H_p,
                          W_p, model, sample_step, dist_bound, color):
-
+    NMSE = None
+    mean_NMSE = 0
     x_p = torch.tensor(x_p, dtype=torch.float)
     y_p = torch.tensor(y_p, dtype=torch.float)
     omegas_plot = torch.tensor(omegas_plot, dtype=torch.float)
@@ -63,20 +64,21 @@ def visualise_prediction(x_p, y_p, omegas_plot, full_known_disp_dict, eigen_mode
     y = y_p.to(device)
     for i in range(len(omegas_plot)):
         omega_plot = omegas_plot[i]
-        omega_plot = torch.full((len(x_p),), omega_plot)
-        omega_plot = omega_plot[None]
-        print('omega_plot: ', omega_plot.shape)
+        omega_in = torch.full((len(x_p),), omega_plot)
+        omega_in = omega_in[None]
+        print('omega_plot: ', omega_in.shape)
         print('x_p: ', x_p.shape)
-        omega_plot = omega_plot.to(device)
+        omega_in = omega_in.to(device)
 
-        c = {'coords': torch.cat([x, y], dim=-1).float(), 'omega': omega_plot}
+        c = {'coords': torch.cat([x, y], dim=-1).float(), 'omega': omega_in}
         pred = model(c)['model_out']
         u_pred, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = (
             pred[:, 0:1], pred[:, 1:2], pred[:, 2:3], pred[:, 3:4], pred[:, 4:5], pred[:, 5:6]
         )
-        #u_real = full_known_disp_dict[round(omega_plot.item(), 6)].numpy().reshape(image_height, image_width)  # TODO
+        u_real = full_known_disp_dict[round(omega_plot.item(), 6)].numpy().reshape(image_height, image_width)
         u_pred = u_pred.cpu().detach().numpy().reshape(image_height, image_width)  # CUDA
-        #NMSE = round((np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2), 5)  # TODO
+        NMSE = round((np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2), 5)
+        mean_NMSE += NMSE
 
         # dudy = dudyyyy.cpu().detach().numpy().reshape(image_height, image_width)
         # dudx = dudxxxx.cpu().detach().numpy().reshape(image_height, image_width)
@@ -96,8 +98,8 @@ def visualise_prediction(x_p, y_p, omegas_plot, full_known_disp_dict, eigen_mode
         # Mostra il primo plot
         plt.show()
 
-        # Secondo plot (subplot con due immagini)  # TODO
-        '''fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))  
+        # Secondo plot (subplot con due immagini)
+        fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
 
         im1 = axes[0].imshow(u_pred, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
         axes[0].set_xlabel('X')
@@ -115,7 +117,7 @@ def visualise_prediction(x_p, y_p, omegas_plot, full_known_disp_dict, eigen_mode
         fig.colorbar(im2, ax=axes[1])
 
         plt.tight_layout()
-        plt.show()'''
+        plt.show()
 
         '''# Plot di du
         plt.figure(figsize=(8, 6))
@@ -135,14 +137,14 @@ def visualise_prediction(x_p, y_p, omegas_plot, full_known_disp_dict, eigen_mode
         plt.colorbar(label='Increment')
         plt.show()'''
 
-    #return NMSE  # TODO
+    return mean_NMSE/len(omegas_plot)
 
 
 def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
     fig = plt.figure(figsize=(6, 4.5), dpi=100)
     plt.plot(torch.log(torch.tensor(history_loss['L_f'])), label='$L_f$ governing equation')
     plt.plot(torch.log(torch.tensor(history_loss['L_t'])), label='$L_t$ Known points')
-    # plt.plot(torch.log(torch.tensor(history_loss['L_m'])), label='$L_m$ Simmetry points')
+    #plt.plot(torch.log(torch.tensor(history_loss['L_e'])), label='$L_e$ Simmetry points')
     if not free_edges:
         plt.plot(torch.log(torch.tensor(history_loss['L_b0'])), label='$L_{b0}$ Dirichlet boundaries')
         plt.plot(torch.log(torch.tensor(history_loss['L_b2'])), label='$L_{b2}$ Moment boundaries')
@@ -156,9 +158,9 @@ def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
 
     if metric_lam is not None:
         fig2 = plt.figure(figsize=(6, 4.5), dpi=100)
-        plt.plot(history_lambda['L_f_lambda'], label='$\lambda_f$ governing equation')
+        plt.plot(history_lambda['L_f_lambda'], label='$\lambda_f$ Governing equation')
         plt.plot(history_lambda['L_t_lambda'], label='$\lambda_{t}$ Known points')
-        # plt.plot(history_lambda['L_m_lambda'], label='$\lambda_{m}$ Simmetry points')
+        #plt.plot(history_lambda['L_e_lambda'], label='$\lambda_{e}$ Strain energy')
         if not free_edges:
             plt.plot(history_lambda['L_b0_lambda'], label='$\lambda_{b0}$ Dirichlet boundaries')
             plt.plot(history_lambda['L_b2_lambda'], label='$\lambda_{b2}$ Moment boundaries')
