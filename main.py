@@ -22,10 +22,10 @@ total_length = 1
 lr = 0.001
 batch_size_domain = 2000
 num_hidden_layers = 2
-hidden_features = 32
-temperature = 0.1  # 10e-05
-rho = 0.9  # 0.99, 0.5, 0.35, 0.1
-alpha = 0.99  # 0.9, 0.1, 0.1, 0.99
+hidden_features = 8
+temperature = 1  # 10e-05
+rho = 0.99  # 0.99, 0.5, 0.35, 0.1
+alpha = 0.999  # 0.9, 0.1, 0.1, 0.99
 
 steps_til_summary = 10
 opt_model = 'sine'  # mish
