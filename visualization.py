@@ -9,8 +9,8 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
                    image_height, H, W, H_p, W_p, sample_step, dist_bound, n_d, size_norm, color):
     known_disps = [known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for index, (i, j) in
                    enumerate(zip(x_p, y_p))]
-    kdp = np.reshape(known_disps, (image_height, image_width))
-    fkdp = np.reshape(full_known_disp, (image_height, image_width))
+    kdp = np.reshape(np.real(known_disps), (image_height, image_width))
+    fkdp = np.reshape(np.real(full_known_disp), (image_height, image_width))
     X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step),
                        np.arange(dist_bound, H + dist_bound, sample_step))
 
@@ -75,8 +75,8 @@ def visualise_prediction(x_p, y_p, omegas_plot, full_known_disp_dict, eigen_mode
         u_pred, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = (
             pred[:, 0:1], pred[:, 1:2], pred[:, 2:3], pred[:, 3:4], pred[:, 4:5], pred[:, 5:6]
         )
-        u_real = full_known_disp_dict[round(omega_plot.item(), 6)].numpy().reshape(image_height, image_width)
-        u_pred = u_pred.cpu().detach().numpy().reshape(image_height, image_width)  # CUDA
+        u_real = np.real(full_known_disp_dict[round(omega_plot.item(), 6)].numpy().reshape(image_height, image_width))
+        u_pred = np.real(u_pred.cpu().detach().numpy().reshape(image_height, image_width))  # CUDA
         NMSE = round((np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2), 5)
         mean_NMSE += NMSE
 
@@ -144,7 +144,7 @@ def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
     fig = plt.figure(figsize=(6, 4.5), dpi=100)
     plt.plot(torch.log(torch.tensor(history_loss['L_f'])), label='$L_f$ governing equation')
     plt.plot(torch.log(torch.tensor(history_loss['L_t'])), label='$L_t$ Known points')
-    #plt.plot(torch.log(torch.tensor(history_loss['L_e'])), label='$L_e$ Simmetry points')
+    plt.plot(torch.log(torch.tensor(history_loss['L_l'])), label='$L_l$ Simmetry points')
     if not free_edges:
         plt.plot(torch.log(torch.tensor(history_loss['L_b0'])), label='$L_{b0}$ Dirichlet boundaries')
         plt.plot(torch.log(torch.tensor(history_loss['L_b2'])), label='$L_{b2}$ Moment boundaries')
@@ -160,7 +160,7 @@ def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
         fig2 = plt.figure(figsize=(6, 4.5), dpi=100)
         plt.plot(history_lambda['L_f_lambda'], label='$\lambda_f$ Governing equation')
         plt.plot(history_lambda['L_t_lambda'], label='$\lambda_{t}$ Known points')
-        #plt.plot(history_lambda['L_e_lambda'], label='$\lambda_{e}$ Strain energy')
+        plt.plot(history_lambda['L_l_lambda'], label='$\lambda_{l}$ Strain energy')
         if not free_edges:
             plt.plot(history_lambda['L_b0_lambda'], label='$\lambda_{b0}$ Dirichlet boundaries')
             plt.plot(history_lambda['L_b2_lambda'], label='$\lambda_{b2}$ Moment boundaries')

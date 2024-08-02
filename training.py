@@ -85,11 +85,11 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
                             'L_t']
                         if free_edges:
                             tqdm.write("Epoch %d, Total loss %0.3e, L_f %0.3e, "
-                                       "L_t %0.3e, "
+                                       "L_t %0.3e, L_l %0.3e, "
                                        "iteration time %0.6f, lr: %.3e"
                                        % (
                                         epoch, l_u_met, metric_result['L_f'],
-                                        metric_result['L_t'], time.time() - start_time,
+                                        metric_result['L_t'], metric_result['L_l'], time.time() - start_time,
                                         current_lr))
                         else:
                             if relo:
@@ -120,7 +120,7 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
                 history_loss['L_b2'].append(metric_result['L_b2'])
                 history_loss['L_u'].append(metric_result['L_u'])
                 history_loss['L_t'].append(metric_result['L_t'])
-                #history_loss['L_e'].append(metric_result['L_e'])
+                history_loss['L_l'].append(metric_result['L_l'])
             except TypeError:
                 print(f"Error in epoch {epoch}: metric_result = {metric_result}")
 
@@ -130,7 +130,7 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
                     history_lambda['L_b0_lambda'].append(lambda_results['L_b0'])
                     history_lambda['L_b2_lambda'].append(lambda_results['L_b2'])
                     history_lambda['L_t_lambda'].append(lambda_results['L_t'])
-                    #history_lambda['L_e_lambda'].append(lambda_results['L_e'])
+                    history_lambda['L_l_lambda'].append(lambda_results['L_l'])
 
                 except TypeError:
                     print(f"Error in epoch {epoch}: metric_result = {metric_result}")
