@@ -57,13 +57,13 @@ def scale_to_target(W, H, target, n_d):
 
 
 def gaussian_2d(x, y, mu_x, mu_y, sigma):
-    return (1 / (2 * np.pi * sigma ** 2)) * torch.exp(-((x - mu_x) ** 2 + (y - mu_y) ** 2) / (2 * sigma ** 2))
+    return (1 / (2 * np.pi * sigma ** 2)) * np.exp(-((x - mu_x) ** 2 + (y - mu_y) ** 2) / (2 * sigma ** 2))
 
 
 class KirchhoffDataset(Dataset):
 
     def __init__(self, T, nue, E, D, H, W, total_length, den: float, omegas, batch_size_domain, known_disp_concatenate,
-                 x_t, y_t, max_norm, free_edges, center_x, center_y, point_load_radius, num_points_load, load_vector,
+                 x_t, y_t, max_norm, free_edges, center_x, center_y, point_load_radius, num_points_load, load,
                  device, sample_step, dist_bound, n_samp_x, n_samp_y, model):
         self.T = T
         self.nue = nue
@@ -84,7 +84,7 @@ class KirchhoffDataset(Dataset):
         self.center_y = center_y
         self.point_load_radius = point_load_radius
         self.num_points_load = num_points_load
-        self.load_vector = load_vector
+        self.load = load
         self.device = device
         self.num_loss = 3
         self.sample_step = sample_step
@@ -92,7 +92,7 @@ class KirchhoffDataset(Dataset):
         self.n_samp_x = n_samp_x
         self.n_samp_y = n_samp_y
         self.model = model
-        self.gaussian_value_load = None
+        self.gaussian_load = None
 
     def __getitem__(self, item):
         x, y, omega = self.training_batch()
@@ -115,15 +115,14 @@ class KirchhoffDataset(Dataset):
         # Calculate the random points
         x_l = self.center_x + radii * np.cos(angles)
         y_l = self.center_y + radii * np.sin(angles)
+
+        #gaussian_value = gaussian_2d(x_l, y_l, self.center_x, self.center_y, 0.01)
+        #g_v_l = [(value / sum(gaussian_value)) * self.load for value in gaussian_value]
+        g_v_l = [self.load] * 50
+        g_v_l = [0] * len(self.known_disp_concatenate) + g_v_l + [0] * self.batch_size_domain
+        self.gaussian_load = torch.tensor(g_v_l, dtype=torch.complex32).to(self.device)
         x_l = torch.tensor(x_l, dtype=torch.float32)
         y_l = torch.tensor(y_l, dtype=torch.float32)
-
-        gaussian_value = gaussian_2d(x_l, y_l, self.center_x, self.center_y, 0.01)
-        gaussian_value = torch.tensor(gaussian_value, dtype=torch.complex32).to(self.device)
-        g_v_l = gaussian_value / torch.sum(gaussian_value) * self.load_vector
-        g_v_l = g_v_l.cpu().tolist()
-        g_v_l = [0] * len(self.known_disp_concatenate) + g_v_l + [0] * self.batch_size_domain
-        self.gaussian_value_load = torch.tensor(g_v_l, dtype=torch.complex32)
 
         x_t = np.tile(self.x_t, len(self.omegas))
         x_t = torch.tensor(x_t, dtype=torch.float32)
@@ -177,14 +176,14 @@ class KirchhoffDataset(Dataset):
         dudxxyy = R_dudxxyy + 1j * I_dudxxyy
         dudyyyy = R_dudyyyy + 1j * I_dudyyyy
 
-        mask = (self.gaussian_value_load == 0)
+        mask = (self.gaussian_load == 0)
         L_tot = torch.abs((dudxxxx + 2 * dudxxyy + dudyyyy - (self.den * self.T * (omega ** 2)) / self.D * u
-                           - self.gaussian_value_load / self.D))
+                           + self.gaussian_load / self.D))
 
         # print('1: ', (dudxxxx + 2 * dudxxyy + dudyyyy).mean())
         # print('2: ', ((self.den * self.T * (omega ** 2)) / self.D * u).mean())
         # print('3: ', abs(self.load_vector[~mask]).mean())
         L_f = L_tot[mask] ** 2
-        L_l = L_tot[~mask] ** 2 / 10000
+        L_l = L_tot[~mask] ** 2
 
         return {'L_f': L_f, 'L_t': L_t, 'L_l': L_l}
