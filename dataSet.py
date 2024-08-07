@@ -13,7 +13,11 @@ def gradient(y, x, grad_outputs=None):
 
 
 def compute_derivatives(x, y, u):
-
+    u = u[8:, :]  # TODO len(x_t)
+    print('u: ', u.shape)
+    x = x[8:, :]
+    print('x: ', x.shape)
+    y = y[8:, :]
     dudx = gradient(u, x)
     dudy = gradient(u, y)
 
@@ -27,6 +31,7 @@ def compute_derivatives(x, y, u):
     dudxxxx = gradient(dudxxx, x)
     dudxxyy = gradient(dudxxy, y)
     dudyyyy = gradient(dudyyy, y)
+    print('dudxxxx: ', dudxxxx.shape)
 
     return dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy
 
@@ -48,8 +53,8 @@ def scale_to_target(W, H, target, n_d):
 
 class KirchhoffDataset(Dataset):
 
-    def __init__(self, T, nue, E, D, H, W, total_length, den: float, omega: float, batch_size_domain, known_disp,
-                 full_known_disp, x_t, y_t, max_norm, free_edges, device, sample_step, dist_bound, n_samp_x,
+    def __init__(self, T, nue, E, D, H, W, total_length, den, omegas, batch_size_domain, known_disp,
+                 full_known_disp, known_disp_concatenate, x_t, y_t, adim_k, max_norm, free_edges, device, sample_step, dist_bound, n_samp_x,
                  n_samp_y):
         self.T = T
         self.nue = nue
@@ -59,16 +64,18 @@ class KirchhoffDataset(Dataset):
         self.W = W
         self.total_length = total_length
         self.den = den
-        self.omega = omega
+        self.omegas = omegas
         self.batch_size_domain = batch_size_domain
         self.known_disp = known_disp.to(device)
         self.full_known_disp = full_known_disp
+        self.known_disp_concatenate = known_disp_concatenate
         self.x_t = torch.tensor(x_t, dtype=torch.float32)
         self.y_t = torch.tensor(y_t, dtype=torch.float32)
+        self.adim_k = adim_k
         self.max_norm = max_norm
         self.free_edges = free_edges
         self.device = device
-        self.num_loss = 3
+        self.num_loss = 2
         self.sample_step = sample_step
         self.dist_bound = dist_bound
         self.n_samp_x = n_samp_x
@@ -108,22 +115,23 @@ class KirchhoffDataset(Dataset):
         # governing equation loss
         u_t = np.squeeze(preds[:len(self.x_t), 0:1])
         #print('u_t ', u_t.shape)
-        #print('preds ', preds)
+        print('preds ', preds.shape)
         x = np.squeeze(x)
         y = np.squeeze(y)
-        u = np.squeeze(preds[:, 0:1])
+        u = np.squeeze(preds[len(self.x_t):, 0:1])
         #print('u ', u.shape)
-        dudxx = np.squeeze(preds[:, 1:2])
-        dudyy = np.squeeze(preds[:, 2:3])
-        dudxxxx = np.squeeze(preds[:, 3:4])
-        dudyyyy = np.squeeze(preds[:, 4:5])
-        dudxxyy = np.squeeze(preds[:, 5:6])
+        dudxx = np.squeeze(preds[len(self.x_t):, 1:2])
+        dudyy = np.squeeze(preds[len(self.x_t):, 2:3])
+        dudxxxx = np.squeeze(preds[len(self.x_t):, 3:4])
+        dudyyyy = np.squeeze(preds[len(self.x_t):, 4:5])
+        dudxxyy = np.squeeze(preds[len(self.x_t):, 5:6])
 
-        err_t = self.known_disp - u_t
-        # print('u_t: ', u_t.shape, 'err_t: ', err_t.shape, 'kd: ', self.known_disp.shape)
+        err_t = self.known_disp_concatenate - u_t
+        #print('u_t: ', u_t.shape, 'err_t: ', err_t.shape)
 
+        #print('u: ', u.shape, 'omegas: ', self.omegas.shape)
         f = (dudxxxx + 2 * dudxxyy + dudyyyy -
-             (self.den * self.T * (self.omega ** 2)) / self.D * u)
+             (self.den * self.T * (self.omegas ** 2)) / self.D * u)
 
         L_f = f ** 2
         L_t = err_t ** 2
