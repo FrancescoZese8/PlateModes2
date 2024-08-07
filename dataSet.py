@@ -49,7 +49,7 @@ def scale_to_target(W, H, target, n_d):
 class KirchhoffDataset(Dataset):
 
     def __init__(self, T, nue, E, D, H, W, total_length, den: float, omega: float, batch_size_domain, known_disp,
-                 full_known_disp, x_t, y_t, max_norm, free_edges, device, sample_step, dist_bound, n_samp_x,
+                 full_known_disp, x_t, y_t, adim_k, max_norm, free_edges, device, sample_step, dist_bound, n_samp_x,
                  n_samp_y):
         self.T = T
         self.nue = nue
@@ -65,10 +65,11 @@ class KirchhoffDataset(Dataset):
         self.full_known_disp = full_known_disp
         self.x_t = torch.tensor(x_t, dtype=torch.float32)
         self.y_t = torch.tensor(y_t, dtype=torch.float32)
+        self.adim_k = adim_k
         self.max_norm = max_norm
         self.free_edges = free_edges
         self.device = device
-        self.num_loss = 3
+        self.num_loss = 2
         self.sample_step = sample_step
         self.dist_bound = dist_bound
         self.n_samp_x = n_samp_x
@@ -122,6 +123,7 @@ class KirchhoffDataset(Dataset):
         err_t = self.known_disp - u_t
         # print('u_t: ', u_t.shape, 'err_t: ', err_t.shape, 'kd: ', self.known_disp.shape)
 
+        #f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (self.omega ** 2) * u)
         f = (dudxxxx + 2 * dudxxyy + dudyyyy -
              (self.den * self.T * (self.omega ** 2)) / self.D * u)
 

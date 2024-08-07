@@ -80,8 +80,7 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
 
                     if not total_steps % steps_til_summary:
                         current_lr = optim.param_groups[0]['lr']
-                        l_u_met = metric_result['L_f'] + metric_result['L_b0'] + metric_result['L_b2'] + metric_result[
-                            'L_t']
+                        l_u_met = metric_result['L_f'] + metric_result['L_t']
                         if free_edges:
                             tqdm.write("Epoch %d, Total loss %0.3e, L_f %0.3e, "
                                        "L_t %0.3e, "

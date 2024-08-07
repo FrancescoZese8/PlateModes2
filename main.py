@@ -12,7 +12,7 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 150
+num_epochs = 300
 n_step = 50
 num_known_points = 10
 size_norm = 10
@@ -21,37 +21,47 @@ total_length = 1
 lr = 0.001
 batch_size_domain = 2000
 num_hidden_layers = 2
-hidden_features = 32
+hidden_features = 16
 temperature = 1  # 10e-05
-rho = 0.9  # 0.99, 0.5, 0.35, 0.1
-alpha = 0.9  # 0.9, 0.1, 0.1, 0.99
+rho = 0.99  # 0.99, 0.5, 0.35, 0.1
+alpha = 0.999  # 0.9, 0.1, 0.1, 0.99
 
 steps_til_summary = 10
 opt_model = 'sine'  # mish
 mode = 'pinn'
 clip_grad = 1.0
 use_lbfgs = False
-relo = True
+relo = False
 max_epochs_without_improvement = 50
 free_edges = True
 color = 'viridis'  # bwr
 
 n_d = 4
 W, H, T, E, nue, den = 0.20, 0.35, 0.005, 10e6, 0.28, 420
+D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 W_p, H_p = W, H
-W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)
-print('W, H, scaling_factor: ', W, H, scaling_factor)
+W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)#
+print('W, H, scaling_factor: ', W, H, scaling_factor)#
 
-eigen_mode = 9
+eigen_mode = 14
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
          165.3, ]  # ViolinPlateFOD3
 omega = freqs[eigen_mode] * 2 * torch.pi
 print('freq: ', freqs[eigen_mode])
-omega = omega / scaling_factor ** 2
+omega = omega / scaling_factor ** 2#
+#W_norm = omega
+#omega = omega / W_norm  # TODO ciclo per multiple omega
 
-D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
+#L_norm = (D/(den * T * W_norm**2))**(1/4)/1  # TODO
+#W = W/L_norm
+#H = H/L_norm
+
+#adim_k = (den * T * W_norm**2 * L_norm**4) / D
+#print('adim_k: ', adim_k)
+adim_k = 1#
+#print('W: ', W, 'H: ', H)
 
 df = pd.read_csv('ViolinPlateFOD2.csv', sep=';')
 df_numeric = df.apply(pd.to_numeric, errors='coerce')
@@ -125,7 +135,7 @@ visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y
 
 plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=total_length, den=den,
                                  omega=omega, batch_size_domain=batch_size_domain, known_disp=known_disp,
-                                 full_known_disp=full_known_disp, x_t=x_t, y_t=y_t,
+                                 full_known_disp=full_known_disp, x_t=x_t, y_t=y_t, adim_k=adim_k,
                                  max_norm=max_norm,
                                  free_edges=free_edges, device=device, sample_step=sample_step,
                                  dist_bound=dist_bound,
