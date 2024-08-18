@@ -12,26 +12,31 @@ class CustomVariable:
 
 
 class MultiTaskLossWrapper(torch.nn.Module):
-    def __init__(self, plate: KirchhoffDataset, num_tasks):
+    def __init__(self, plate, num_tasks, epsilon=1e-6):
         super(MultiTaskLossWrapper, self).__init__()
         self.plate = plate
-        self.log_vars = torch.nn.Parameter(torch.zeros(num_tasks))
+        self.epsilon = torch.tensor(epsilon)
+        self.log_vars = torch.nn.Parameter(torch.zeros(num_tasks))  # w_i^2 sotto log
 
     def call(self, preds, xy):
         xy = xy['coords']
         x, y = xy[:, :, 0], xy[:, :, 1]
         preds = preds['model_out']
 
-        # Compute the individual losses
+        # Calcola le perdite individuali
         losses = self.plate.compute_loss(x, y, preds)
-        total_loss = 0
+        weighted_losses = {}
 
-        # Calculate the weighted loss using log_vars for each task
+        # Pondera le perdite utilizzando log_vars e epsilon
         for i, (name, loss) in enumerate(losses.items()):
-            precision = torch.exp(-self.log_vars[i])
-            total_loss += precision * loss.mean() + self.log_vars[i]
+            uncertainty = self.epsilon + torch.exp(self.log_vars[i])  # ϵ² + w_i²
+            precision = 1 / (2 * uncertainty)  # 1 / (2(ϵ² + w_i²))
+            weighted_loss = precision * loss.mean() + torch.log(uncertainty)  # Li(θ) + log(ϵ² + w_i²)
+            weighted_losses[name] = weighted_loss
 
-        return total_loss, losses
+        # Somma ponderata delle perdite
+        return weighted_losses
+
 
 class KirchhoffLoss(torch.nn.Module):
     def __init__(self, plate: KirchhoffDataset):
@@ -47,17 +52,17 @@ class KirchhoffLoss(torch.nn.Module):
 
 class ReLoBRaLoKirchhoffLoss(KirchhoffLoss):
 
-    def __init__(self, plate: KirchhoffDataset, alpha: float = 0.999, temperature: float = 1., rho: float = 0.9999):
+    def __init__(self, plate: KirchhoffDataset, num_loss, alpha: float = 0.999, temperature: float = 1., rho: float = 0.9999):
         super().__init__(plate)
         self.plate = plate
+        self.num_loss=num_loss
         self.alpha = torch.tensor(alpha)
         self.temperature = temperature
         self.rho = rho
         self.call_count = CustomVariable(0., trainable=False, dtype=torch.float32)
-
-        self.lambdas = [CustomVariable(1., trainable=False) for _ in range(plate.num_loss)]
-        self.last_losses = [CustomVariable(1., trainable=False) for _ in range(plate.num_loss)]
-        self.init_losses = [CustomVariable(1., trainable=False) for _ in range(plate.num_loss)]
+        self.lambdas = [CustomVariable(1., trainable=False) for _ in range(self.num_loss)]
+        self.last_losses = [CustomVariable(1., trainable=False) for _ in range(self.num_loss)]
+        self.init_losses = [CustomVariable(1., trainable=False) for _ in range(self.num_loss)]
 
     def call(self, preds, xy):
         xy = xy['coords']
@@ -115,16 +120,14 @@ class ReLoBRaLoKirchhoffLoss(KirchhoffLoss):
 
 
 class KirchhoffMetric(nn.Module):
-    def __init__(self, plate, free_edges):
+    def __init__(self, plate, third_loss):
         super(KirchhoffMetric, self).__init__()
         self.plate = plate
-        self.free_edges = free_edges
+        self.third_loss = third_loss
         self.L_f_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
-        self.L_b0_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
-        self.L_b2_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
         self.L_t_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
-        self.L_u_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
-        # self.L_m_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
+        if self.third_loss:
+            self.L_o_mean = nn.Parameter(torch.zeros(1), requires_grad=False)
 
     def update_state(self, xy, y_pred, losses=None, sample_weight=None):
         xy = xy['coords']
@@ -132,68 +135,51 @@ class KirchhoffMetric(nn.Module):
         x, y = xy[:, :, 0], xy[:, :, 1]
 
         compute_loss_dic = self.plate.compute_loss(x, y, y_pred, eval=True)
-        if self.free_edges:
-            self.L_f_mean.data = torch.mean(compute_loss_dic['L_f'])
-            self.L_t_mean.data = torch.mean(compute_loss_dic['L_t'])
-            # self.L_m_mean.data = torch.mean(compute_loss_dic['L_m'])
-        else:
-            self.L_f_mean.data = torch.mean(compute_loss_dic['L_f'])
-            self.L_b0_mean.data = torch.mean(compute_loss_dic['L_b0'])
-            self.L_b2_mean.data = torch.mean(compute_loss_dic['L_b2'])
-            self.L_u_mean.data = torch.mean(compute_loss_dic['L_u'])
-            self.L_t_mean.data = torch.mean(compute_loss_dic['L_t'])
+        self.L_f_mean.data = torch.mean(compute_loss_dic['L_f'])
+        self.L_t_mean.data = torch.mean(compute_loss_dic['L_t'])
+        if self.third_loss:
+            self.L_o_mean.data = torch.mean(compute_loss_dic['L_o'])
 
     def reset_state(self):
         self.L_f_mean.data = torch.zeros(1)
-        self.L_b0_mean.data = torch.zeros(1)
-        self.L_b2_mean.data = torch.zeros(1)
-        self.L_u_mean.data = torch.zeros(1)
         self.L_t_mean.data = torch.zeros(1)
-        # self.L_m_mean.data = torch.zeros(1)
+        if self.third_loss:
+            self.L_o_mean.data = torch.zeros(1)
 
     def result(self):
-        return {'L_f': self.L_f_mean.item(),  # .mean().item(),
-                'L_b0': self.L_b0_mean.item(),
-                'L_b2': self.L_b2_mean.item(),
-                'L_u': self.L_u_mean.item(),
-                'L_t': self.L_t_mean.item()}
-        # 'L_m': self.L_m_mean.item()}
+        return {'L_f': self.L_f_mean.item(),
+                'L_t': self.L_t_mean.item(),
+                'L_o': self.L_o_mean.item() if self.third_loss else None}
 
 
 class ReLoBRaLoLambdaMetric(nn.Module):
-    def __init__(self, loss, free_edges, name='relobralo_lambda_metric'):
+    def __init__(self, loss, third_loss, name='relobralo_lambda_metric'):
         super(ReLoBRaLoLambdaMetric, self).__init__()
         self.loss = loss
-        self.free_edges = free_edges
+        self.third_loss = third_loss
         self.L_f_lambda_mean = CustomVariable(0.0, trainable=False)
-        self.L_b0_lambda_mean = CustomVariable(0.0, trainable=False)
-        self.L_b2_lambda_mean = CustomVariable(0.0, trainable=False)
         self.L_t_lambda_mean = CustomVariable(0.0, trainable=False)
-        # self.L_m_lambda_mean = CustomVariable(0.0, trainable=False)
+        if self.third_loss:
+            self.L_o_lambda_mean = CustomVariable(0.0, trainable=False)
 
     def update_state(self, xy, y_pred, sample_weight=None):
-        if self.free_edges:
-            L_f_lambda, L_t_lambda = self.loss.lambdas  # L_m_lambda
+        if self.third_loss:
+            L_f_lambda, L_t_lambda, L_o_lambda = self.loss.lambdas
             self.L_f_lambda_mean.assign(L_f_lambda.data.data.item())
             self.L_t_lambda_mean.assign(L_t_lambda.data.item())
-            # self.L_m_lambda_mean.assign(L_m_lambda.data.item())
+            self.L_o_lambda_mean.assign(L_o_lambda.data.item())
         else:
-            L_f_lambda, L_b0_lambda, L_b2_lambda, L_t_lambda = self.loss.lambdas
+            L_f_lambda, L_t_lambda = self.loss.lambdas
             self.L_f_lambda_mean.assign(L_f_lambda.data.data.item())
-            self.L_b0_lambda_mean.assign(L_b0_lambda.data.data.item())
-            self.L_b2_lambda_mean.assign(L_b2_lambda.data.item())
             self.L_t_lambda_mean.assign(L_t_lambda.data.item())
 
     def reset_state(self):
         self.L_f_lambda_mean.assign(0.0)
-        self.L_b0_lambda_mean.assign(0.0)
-        self.L_b2_lambda_mean.assign(0.0)
         self.L_t_lambda_mean.assign(0.0)
-        # self.L_m_lambda_mean.assign(0.0)
+        if self.third_loss:
+            self.L_o_lambda_mean.assign(0.0)
 
     def result(self):
         return {'L_f': self.L_f_lambda_mean.data.data,
-                'L_b0': self.L_b0_lambda_mean.data.data,
-                'L_b2': self.L_b2_lambda_mean.data.data,
-                'L_t': self.L_t_lambda_mean.data.data}
-        # 'L_m': self.L_m_lambda_mean.data.data}
+                'L_t': self.L_t_lambda_mean.data.data,
+                'L_o': self.L_o_lambda_mean.data.data if self.third_loss else None}

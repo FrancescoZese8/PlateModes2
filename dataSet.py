@@ -13,20 +13,69 @@ def gradient(y, x, grad_outputs=None):
 
 
 def compute_derivatives(x, y, u):
+    # Inizializza le liste per accumulare i risultati delle derivate
+    dudx_list = []
+    dudy_list = []
 
-    dudx = gradient(u, x)
-    dudy = gradient(u, y)
+    dudxx_list = []
+    dudyy_list = []
 
-    dudxx = gradient(dudx, x)
-    dudyy = gradient(dudy, y)
+    dudxxx_list = []
+    dudxxy_list = []
+    dudyyy_list = []
 
-    dudxxx = gradient(dudxx, x)
-    dudxxy = gradient(dudxx, y)
-    dudyyy = gradient(dudyy, y)
+    dudxxxx_list = []
+    dudxxyy_list = []
+    dudyyyy_list = []
 
-    dudxxxx = gradient(dudxxx, x)
-    dudxxyy = gradient(dudxxy, y)
-    dudyyyy = gradient(dudyyy, y)
+    # Cicla su ciascuna colonna di u (per ogni frequenza)
+    for i in range(u.shape[1]):
+        u_i = u[:, i]  # Estrai la colonna i-esima di u
+
+        # Calcola le derivate per la colonna corrente
+        dudx = gradient(u_i, x)
+        dudy = gradient(u_i, y)
+
+        dudxx = gradient(dudx, x)
+        dudyy = gradient(dudy, y)
+
+        dudxxx = gradient(dudxx, x)
+        dudxxy = gradient(dudxx, y)
+        dudyyy = gradient(dudyy, y)
+
+        dudxxxx = gradient(dudxxx, x)
+        dudxxyy = gradient(dudxxy, y)
+        dudyyyy = gradient(dudyyy, y)
+
+        # Aggiungi i risultati alla lista corrispondente
+        dudx_list.append(dudx)
+        dudy_list.append(dudy)
+
+        dudxx_list.append(dudxx)
+        dudyy_list.append(dudyy)
+
+        dudxxx_list.append(dudxxx)
+        dudxxy_list.append(dudxxy)
+        dudyyy_list.append(dudyyy)
+
+        dudxxxx_list.append(dudxxxx)
+        dudxxyy_list.append(dudxxyy)
+        dudyyyy_list.append(dudyyyy)
+
+    # Converti le liste in tensori con shape [1000, n]
+    dudx = torch.stack(dudx_list, dim=1)
+    dudy = torch.stack(dudy_list, dim=1)
+
+    dudxx = torch.stack(dudxx_list, dim=1).squeeze(-1)
+    dudyy = torch.stack(dudyy_list, dim=1).squeeze(-1)
+
+    dudxxx = torch.stack(dudxxx_list, dim=1)
+    dudxxy = torch.stack(dudxxy_list, dim=1)
+    dudyyy = torch.stack(dudyyy_list, dim=1)
+
+    dudxxxx = torch.stack(dudxxxx_list, dim=1).squeeze(-1)
+    dudxxyy = torch.stack(dudxxyy_list, dim=1).squeeze(-1)
+    dudyyyy = torch.stack(dudyyyy_list, dim=1).squeeze(-1)
 
     return dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy
 
@@ -39,7 +88,7 @@ def compute_moments(D, nue, dudxx, dudyy):
 
 
 def scale_to_target(W, H, target, n_d):
-    scaling_factor = round(target/max(W, H), 2)
+    scaling_factor = round(target / max(W, H), 2)
     W = round(W * scaling_factor, n_d)
     H = round(H * scaling_factor, n_d)
 
@@ -48,8 +97,8 @@ def scale_to_target(W, H, target, n_d):
 
 class KirchhoffDataset(Dataset):
 
-    def __init__(self, T, nue, E, D, H, W, total_length, den: float, omega: float, batch_size_domain, known_disp,
-                 full_known_disp, x_t, y_t, adim_k, max_norm, free_edges, device, sample_step, dist_bound, n_samp_x,
+    def __init__(self, T, nue, E, D, H, W, total_length, den, omegas, batch_size_domain, known_disp_concatenate,
+                 x_t, y_t, adim_k, max_norm, third_loss, device, sample_step, dist_bound, n_samp_x,
                  n_samp_y):
         self.T = T
         self.nue = nue
@@ -59,17 +108,15 @@ class KirchhoffDataset(Dataset):
         self.W = W
         self.total_length = total_length
         self.den = den
-        self.omega = omega
+        self.omegas = omegas
         self.batch_size_domain = batch_size_domain
-        self.known_disp = known_disp.to(device)
-        self.full_known_disp = full_known_disp
-        self.x_t = torch.tensor(x_t, dtype=torch.float32)
-        self.y_t = torch.tensor(y_t, dtype=torch.float32)
+        self.known_disp_concatenate = known_disp_concatenate.to(device)
+        self.x_t = x_t
+        self.y_t = y_t
         self.adim_k = adim_k
         self.max_norm = max_norm
-        self.free_edges = free_edges
+        self.third_loss = third_loss
         self.device = device
-        self.num_loss = 2
         self.sample_step = sample_step
         self.dist_bound = dist_bound
         self.n_samp_x = n_samp_x
@@ -96,8 +143,12 @@ class KirchhoffDataset(Dataset):
         x_random = torch.rand((self.batch_size_domain,)) * self.W
         y_random = torch.rand((self.batch_size_domain,)) * self.H
 
-        x = torch.cat((self.x_t, x_random), dim=0)
-        y = torch.cat((self.y_t, y_random), dim=0)
+        # x_t = np.tile(self.x_t, len(self.omegas))
+        x_t = torch.tensor(self.x_t, dtype=torch.float32)
+        # y_t = np.tile(self.y_t, len(self.omegas))
+        y_t = torch.tensor(self.y_t, dtype=torch.float32)
+        x = torch.cat((x_t, x_random), dim=0)
+        y = torch.cat((y_t, y_random), dim=0)
         x = x[..., None]
         y = y[..., None]
         x = x.to(self.device)  # CUDA
@@ -107,55 +158,52 @@ class KirchhoffDataset(Dataset):
 
     def compute_loss(self, x, y, preds, eval=False):
         # governing equation loss
-        u_t = np.squeeze(preds[:len(self.x_t), 0:1])
-        #print('u_t ', u_t.shape)
-        #print('preds ', preds)
+        no = len(self.omegas)
+        u_t = np.squeeze(preds[:len(self.x_t), 0:no])
+        # print('preds ', preds.shape)
         x = np.squeeze(x)
         y = np.squeeze(y)
-        u = np.squeeze(preds[:, 0:1])
-        #print('u ', u.shape)
-        dudxx = np.squeeze(preds[:, 1:2])
-        dudyy = np.squeeze(preds[:, 2:3])
-        dudxxxx = np.squeeze(preds[:, 3:4])
-        dudyyyy = np.squeeze(preds[:, 4:5])
-        dudxxyy = np.squeeze(preds[:, 5:6])
+        omegas = self.omegas.unsqueeze(0)
+        u = np.squeeze(preds[len(self.x_t):, 0:no])
+        # print('u ', u.shape)
+        dudxx = np.squeeze(preds[len(self.x_t):, no:no + no])
+        dudyy = np.squeeze(preds[len(self.x_t):, no + no:no + no * 2])
+        dudxxxx = np.squeeze(preds[len(self.x_t):, no + no * 2:no + no * 3])
+        dudyyyy = np.squeeze(preds[len(self.x_t):, no + no * 3:no + no * 4])
+        dudxxyy = np.squeeze(preds[len(self.x_t):, no + no * 4:no + no * 5])
 
-        err_t = self.known_disp - u_t
-        # print('u_t: ', u_t.shape, 'err_t: ', err_t.shape, 'kd: ', self.known_disp.shape)
+        #  Per singola omega
+        omegas = omegas.squeeze(-1)
+        u_t = u_t.squeeze(-1)
+        self.known_disp_concatenate = self.known_disp_concatenate.squeeze(-1)
+        dudxxxx = dudxxxx.squeeze(-1)
+        dudxxyy = dudxxyy.squeeze(-1)
+        dudyyyy = dudyyyy.squeeze(-1)
 
-        #f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (self.omega ** 2) * u)
-        f = (dudxxxx + 2 * dudxxyy + dudyyyy -
-             (self.den * self.T * (self.omega ** 2)) / self.D * u)
+        err_t = self.known_disp_concatenate - u_t
+        # print('kdc: ', self.known_disp_concatenate.shape)
+        # print('u_t: ', u_t.shape)
+        # print('u_t: ', u_t.shape)
+        # print('dudxxxx: ', dudxxxx.shape, 'omegas: ', omegas.shape, 'u: ', u.shape, 'err_t: ', err_t.shape)
+
+        f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (omegas ** 2) * u)
+        f = f / (omegas ** 2)
+
+        # f = (dudxxxx + 2 * dudxxyy + dudyyyy - (self.den * self.T * (omegas ** 2)) / self.D * u)
+        # print('omegas: ', omegas.shape)
+        # print('1: ,', (dudxxxx + 2 * dudxxyy + dudyyyy).shape)
+        # print('2: ,', (self.adim_k * (omegas ** 2) * u).shape)
+        # print('f: ', f.shape)
 
         L_f = f ** 2
         L_t = err_t ** 2
 
-        if not self.free_edges:
-            # determine which points are on the boundaries of the domain
-            # if a point is on either of the boundaries, its value is 1 and 0 otherwise
-            x_lower = torch.where(x <= EPS, torch.tensor(1.0, device=self.device),
-                                  torch.tensor(0.0, device=self.device))  # CUDA
-            x_upper = torch.where(x >= self.W - EPS, torch.tensor(1.0, device=self.device),
-                                  torch.tensor(0.0, device=self.device))
-            y_lower = torch.where(y <= EPS, torch.tensor(1.0, device=self.device),
-                                  torch.tensor(0.0, device=self.device))
-            y_upper = torch.where(y >= self.H - EPS, torch.tensor(1.0, device=self.device),
-                                  torch.tensor(0.0, device=self.device))
-            # x_lower = torch.where(x <= EPS, torch.tensor(1.0), torch.tensor(0.0))
-            # x_upper = torch.where(x >= self.W - EPS, torch.tensor(1.0), torch.tensor(0.0))
-            # y_lower = torch.where(y <= EPS, torch.tensor(1.0), torch.tensor(0.0))
-            # y_upper = torch.where(y >= self.H - EPS, torch.tensor(1.0), torch.tensor(0.0))
+        if self.third_loss:
+            dot_products = torch.matmul(u.T, u)
+            off_diagonal_dot_products = dot_products - torch.diag(torch.diag(dot_products))
+            loss_ortogonality = torch.sum(torch.abs(off_diagonal_dot_products))
+            L_o = loss_ortogonality ** 2
 
-            L_b0 = torch.mul((x_lower + x_upper + y_lower + y_upper), u) ** 2
-
-            # compute 2nd order boundary condition loss
-            mx, my = compute_moments(self.D, self.nue, dudxx, dudyy)
-            L_b2 = torch.mul((x_lower + x_upper), mx) ** 2 + torch.mul((y_lower + y_upper), my) ** 2
-
-            if eval:
-                L_u = torch.zeros(self.batch_size_domain + 4 * self.batch_size_boundary)  # TODO
-
-                return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_u': L_u, 'L_t': L_t}
-            return {'L_f': L_f, 'L_b0': L_b0, 'L_b2': L_b2, 'L_t': L_t}
+            return {'L_f': L_f, 'L_t': L_t, 'L_o': L_o}
         else:
             return {'L_f': L_f, 'L_t': L_t}

@@ -50,8 +50,11 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
     plt.show()
 
 
-def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device, image_width, image_height, H, W, H_p,
+def visualise_prediction(x_p, y_p, omegas, full_known_disp, full_known_disp_concatenate, eigen_mode, max_norm, device, image_width, image_height, H, W, H_p,
                          W_p, model, sample_step, dist_bound, color):
+    NMSE = None
+    mean_NMSE = 0
+    omegas = torch.tensor(omegas, dtype=torch.float)
     x_p = torch.tensor(x_p, dtype=torch.float)
     y_p = torch.tensor(y_p, dtype=torch.float)
     x_p = x_p[..., None, None]
@@ -61,82 +64,86 @@ def visualise_prediction(x_p, y_p, full_known_disp, eigen_mode, max_norm, device
 
     c = {'coords': torch.cat([x, y], dim=-1).float()}
     pred = model(c)['model_out']
+    no = len(omegas)
     u_pred, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = (
-        pred[:, 0:1], pred[:, 1:2], pred[:, 2:3], pred[:, 3:4], pred[:, 4:5], pred[:, 5:6]
+        pred[:, 0:no], pred[no:no + 1], pred[no + 1:no + 2], pred[no + 2:no + 3], pred[no + 3:no + 4],
+        pred[no + 4:no + 5]
     )
-    u_real = full_known_disp.numpy().reshape(image_height, image_width)
-    u_pred = u_pred.cpu().detach().numpy().reshape(image_height, image_width)  # CUDA
-    NMSE = round((np.linalg.norm(u_real - u_pred) ** 2) / (np.linalg.norm(u_real) ** 2), 5)
+    #dot_product = torch.sum(torch.dot(u_pred[:, 0], u_pred[:, 1]))
+    #print('dot product finale: ', dot_product)
+    for i in range(len(omegas)):
+        u_plot = u_pred[:, i:i+1]
+        u_real = full_known_disp_concatenate[:, i:i+1].numpy().reshape(image_height, image_width)
+        u_plot = u_plot.cpu().detach().numpy().reshape(image_height, image_width)  # CUDA
+        NMSE = round((np.linalg.norm(u_real - u_plot) ** 2) / (np.linalg.norm(u_real) ** 2), 5)
+        mean_NMSE += NMSE
 
-    dudy = dudyyyy.cpu().detach().numpy().reshape(image_height, image_width)
-    dudx = dudxxxx.cpu().detach().numpy().reshape(image_height, image_width)
+        #dudy = dudyyyy.cpu().detach().numpy().reshape(image_height, image_width)
+        #dudx = dudxxxx.cpu().detach().numpy().reshape(image_height, image_width)
 
-    X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step),
-                       np.arange(dist_bound, H + dist_bound, sample_step))
+        X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step),
+                           np.arange(dist_bound, H + dist_bound, sample_step))
 
-    # Primo plot (plot 3D)
-    fig = plt.figure(figsize=(8, 6))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(X, Y, u_pred, cmap=color)
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    ax.set_title('Predicted Displacement mode: {}'.format(eigen_mode))
+        # Primo plot (plot 3D)
+        fig = plt.figure(figsize=(8, 6))
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot_surface(X, Y, u_plot, cmap=color)
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        ax.set_title('Predicted Displacement mode: {}'.format(eigen_mode[i]))
 
-    # Mostra il primo plot
-    plt.show()
+        # Mostra il primo plot
+        plt.show()
 
-    # Secondo plot (subplot con due immagini)
-    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
+        # Secondo plot (subplot con due immagini)
+        fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
 
-    im1 = axes[0].imshow(u_pred, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
-    axes[0].set_xlabel('X')
-    axes[0].set_ylabel('Y')
-    axes[0].set_title('Predicted Displacement mode: {}'.format(eigen_mode))
+        im1 = axes[0].imshow(u_plot, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
+        axes[0].set_xlabel('X')
+        axes[0].set_ylabel('Y')
+        axes[0].set_title('Predicted Displacement mode: {}'.format(eigen_mode[i]))
 
-    im2 = axes[1].imshow((u_pred - u_real) ** 2, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
-    axes[1].set_xlabel('X')
-    axes[1].set_ylabel('Y')
-    axes[1].set_title('Squared Error Displacement: {}'.format(NMSE))
+        im2 = axes[1].imshow((u_plot - u_real) ** 2, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
+        axes[1].set_xlabel('X')
+        axes[1].set_ylabel('Y')
+        axes[1].set_title('Squared Error Displacement: {}'.format(NMSE))
 
-    plt.show()
+        plt.show()
 
-    fig.colorbar(im1, ax=axes[0])
-    fig.colorbar(im2, ax=axes[1])
+        fig.colorbar(im1, ax=axes[0])
+        fig.colorbar(im2, ax=axes[1])
 
-    plt.tight_layout()
-    plt.show()
+        plt.tight_layout()
+        plt.show()
 
-    # Plot di du
-    plt.figure(figsize=(8, 6))
-    plt.imshow(dudy, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title('dudyyyy')
-    plt.colorbar(label='Increment')
-    plt.show()
+        '''# Plot di du
+        plt.figure(figsize=(8, 6))
+        plt.imshow(dudy, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        plt.title('dudyyyy')
+        plt.colorbar(label='Increment')
+        plt.show()
 
-    # Plot di du
-    plt.figure(figsize=(8, 6))
-    plt.imshow(dudx, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title('dudxxxx')
-    plt.colorbar(label='Increment')
-    plt.show()
+        # Plot di du
+        plt.figure(figsize=(8, 6))
+        plt.imshow(dudx, extent=(0, W_p, 0, H_p), origin='lower', cmap=color)
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        plt.title('dudxxxx')
+        plt.colorbar(label='Increment')
+        plt.show()'''
 
-    return NMSE
+    return mean_NMSE/len(omegas)
 
 
-def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
+def visualise_loss(third_loss, metric_lam, history_loss, history_lambda):
     fig = plt.figure(figsize=(6, 4.5), dpi=100)
     plt.plot(torch.log(torch.tensor(history_loss['L_f'])), label='$L_f$ governing equation')
     plt.plot(torch.log(torch.tensor(history_loss['L_t'])), label='$L_t$ Known points')
-    # plt.plot(torch.log(torch.tensor(history_loss['L_m'])), label='$L_m$ Simmetry points')
-    if not free_edges:
-        plt.plot(torch.log(torch.tensor(history_loss['L_b0'])), label='$L_{b0}$ Dirichlet boundaries')
-        plt.plot(torch.log(torch.tensor(history_loss['L_b2'])), label='$L_{b2}$ Moment boundaries')
-        plt.plot(torch.log(torch.tensor(history_loss['L_u'])), label='$L_u$ analytical solution')
+    if third_loss:
+        plt.plot(torch.log(torch.tensor(history_loss['L_o'])), label='$L_o$ Simmetry points')
     plt.legend()
     plt.xlabel('Epochs')
     plt.ylabel('Log-loss')
@@ -148,10 +155,8 @@ def visualise_loss(free_edges, metric_lam, history_loss, history_lambda):
         fig2 = plt.figure(figsize=(6, 4.5), dpi=100)
         plt.plot(history_lambda['L_f_lambda'], label='$\lambda_f$ governing equation')
         plt.plot(history_lambda['L_t_lambda'], label='$\lambda_{t}$ Known points')
-        # plt.plot(history_lambda['L_m_lambda'], label='$\lambda_{m}$ Simmetry points')
-        if not free_edges:
-            plt.plot(history_lambda['L_b0_lambda'], label='$\lambda_{b0}$ Dirichlet boundaries')
-            plt.plot(history_lambda['L_b2_lambda'], label='$\lambda_{b2}$ Moment boundaries')
+        if third_loss:
+            plt.plot(history_lambda['L_o_lambda'], label='$\lambda_{o}$ Simmetry points')
         plt.legend()
         plt.xlabel('Epochs')
         plt.ylabel('scalings lambda')  # $\lambda$')

@@ -61,5 +61,9 @@ def gridSearch_epochs():
     print('best_epochs: ', best_epochs)
     print('best_steps: ', best_steps)
 
+def gridSearch_neurons():
+    neurons = [0.7, 0.8, 0.9, 1, 1.1, 1.2]
+    for neuron in neurons:
+        NMSE = main.main(neuron)
 
-gridSearch_Relobralo()
+gridSearch_neurons()

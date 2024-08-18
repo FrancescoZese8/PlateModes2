@@ -4,9 +4,9 @@ import time
 
 
 def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_fn,
-          history_loss, history_lambda, metric, metric_lam, max_epochs_without_improvement, free_edges, clip_grad=False,
+          history_loss, history_lambda, metric, metric_lam, max_epochs_without_improvement, third_loss, clip_grad=False,
           use_lbfgs=False, relo=True):
-    optim = torch.optim.Adam(lr=lr, params=model.parameters())
+    optim = torch.optim.Adam(lr=lr, params=list(model.parameters()) + list(loss_fn.parameters()))   ###
 
     if use_lbfgs:
         optim = torch.optim.LBFGS(lr=lr, params=model.parameters(), max_iter=50000, max_eval=50000,
@@ -81,7 +81,7 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
                     if not total_steps % steps_til_summary:
                         current_lr = optim.param_groups[0]['lr']
                         l_u_met = metric_result['L_f'] + metric_result['L_t']
-                        if free_edges:
+                        if not third_loss:
                             tqdm.write("Epoch %d, Total loss %0.3e, L_f %0.3e, "
                                        "L_t %0.3e, "
                                        "iteration time %0.6f, lr: %.3e"
@@ -90,45 +90,30 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
                                         metric_result['L_t'], time.time() - start_time,
                                         current_lr))
                         else:
-                            if relo:
-                                tqdm.write("Epoch %d, Total loss %0.3e, L_f %0.3e, L_b0 %0.3e, L_b2 %0.3e, L_u %0.3e, "
-                                           "L_t %0.3e,"
-                                           "iteration time %0.6f, Lam_f = %0.3f, Lam_b0 = %0.3f, Lam_b2 = %0.3f, lr: %.3e"
-                                           % (
-                                               epoch, l_u_met, metric_result['L_f'], metric_result['L_b0'],
-                                               metric_result['L_b2'],
-                                               metric_result['L_u'], metric_result['L_t'], time.time() - start_time,
-                                               lambda_results['L_f'],
-                                               lambda_results['L_b0'], lambda_results['L_b2'], current_lr))
-                            else:
-                                tqdm.write("Epoch %d, Total loss %0.3e, L_f %0.3e, L_b0 %0.3e, L_b2 %0.3e, L_u %0.3e, "
-                                           "L_t %0.3e,"
-                                           "iteration time %0.6f, lr: %.3e"
-                                           % (
-                                               epoch, l_u_met, metric_result['L_f'], metric_result['L_b0'],
-                                               metric_result['L_b2'],
-                                               metric_result['L_u'], metric_result['L_t'], time.time() - start_time,
-                                               current_lr))
+                            tqdm.write("Epoch %d, Total loss %0.3e, L_f %0.3e, "
+                                       "L_t %0.3e, L_o %0.3e, "
+                                       "iteration time %0.6f, lr: %.3e"
+                                       % (
+                                        epoch, l_u_met, metric_result['L_f'],
+                                        metric_result['L_t'], metric_result['L_o'], time.time() - start_time,
+                                        current_lr))
                     total_steps += 1
 
             lr_scheduler.step(train_loss)
             try:
                 history_loss['L_f'].append(metric_result['L_f'])
-                history_loss['L_b0'].append(metric_result['L_b0'])
-                history_loss['L_b2'].append(metric_result['L_b2'])
-                history_loss['L_u'].append(metric_result['L_u'])
                 history_loss['L_t'].append(metric_result['L_t'])
-                #history_loss['L_m'].append(metric_result['L_m'])
+                if third_loss:
+                    history_loss['L_o'].append(metric_result['L_o'])
             except TypeError:
                 print(f"Error in epoch {epoch}: metric_result = {metric_result}")
 
             if metric_lam is not None:
                 try:
                     history_lambda['L_f_lambda'].append(lambda_results['L_f'])
-                    history_lambda['L_b0_lambda'].append(lambda_results['L_b0'])
-                    history_lambda['L_b2_lambda'].append(lambda_results['L_b2'])
                     history_lambda['L_t_lambda'].append(lambda_results['L_t'])
-                    #history_lambda['L_m_lambda'].append(lambda_results['L_m'])
+                    if third_loss:
+                        history_lambda['L_o_lambda'].append(lambda_results['L_o'])
 
                 except TypeError:
                     print(f"Error in epoch {epoch}: metric_result = {metric_result}")
