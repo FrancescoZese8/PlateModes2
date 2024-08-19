@@ -11,6 +11,40 @@ class CustomVariable:
         self.data.data = torch.tensor(new_value, dtype=self.data.dtype)
 
 
+class DWALoss(torch.nn.Module):
+    def __init__(self, plate, num_tasks):
+        super(DWALoss, self).__init__()
+        self.plate = plate
+        self.num_tasks = num_tasks
+        self.prev_losses = [1.0 for _ in range(num_tasks)]  # Inizializza con 1.0
+
+    def call(self, preds, xy, epoch):
+        xy = xy['coords']
+        x, y = xy[:, :, 0], xy[:, :, 1]
+        preds = preds['model_out']
+
+        # Calcola le perdite individuali
+        losses = self.plate.compute_loss(x, y, preds)
+        weighted_losses = {}
+
+        # Aggiorna i pesi utilizzando la variazione delle perdite
+        if epoch > 0:
+            ratios = [loss.mean().item() / self.prev_losses[i] for i, loss in enumerate(losses.values())]
+            total_ratio = sum(ratios)
+            for i, (name, loss) in enumerate(losses.items()):
+                weight = self.num_tasks * ratios[i] / total_ratio
+                weighted_losses[name] = weight * loss.mean()
+        else:
+            for name, loss in losses.items():
+                weighted_losses[name] = loss.mean()
+
+        # Aggiorna le perdite precedenti
+        self.prev_losses = [loss.mean().item() for loss in losses.values()]
+
+        # Somma ponderata delle perdite
+        return weighted_losses
+
+
 class MultiTaskLossWrapper(torch.nn.Module):
     def __init__(self, plate, num_tasks, epsilon=1e-6):
         super(MultiTaskLossWrapper, self).__init__()
@@ -52,10 +86,11 @@ class KirchhoffLoss(torch.nn.Module):
 
 class ReLoBRaLoKirchhoffLoss(KirchhoffLoss):
 
-    def __init__(self, plate: KirchhoffDataset, num_loss, alpha: float = 0.999, temperature: float = 1., rho: float = 0.9999):
+    def __init__(self, plate: KirchhoffDataset, num_loss, alpha: float = 0.999, temperature: float = 1.,
+                 rho: float = 0.9999):
         super().__init__(plate)
         self.plate = plate
-        self.num_loss=num_loss
+        self.num_loss = num_loss
         self.alpha = torch.tensor(alpha)
         self.temperature = temperature
         self.rho = rho
