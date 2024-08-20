@@ -12,7 +12,7 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 500
+num_epochs = 800
 n_step = 50
 num_known_points = 10
 size_norm = 10
@@ -27,6 +27,8 @@ rho = 0.9
 alpha = 0.99
 
 # tutti modi, NMSE = 0.33: 1200e, 50s, 128n, relo:1, 0.99, 0.999
+# tutti modi, NMSE = 0.132: 500e, 256n, relo: 0.001, 0.9, 0.99.  12 punti random
+
 # modo [14], NMSE = 0.03: 150 e, 8n, multitask, 1.1
 
 steps_til_summary = 10
@@ -46,7 +48,7 @@ D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 W_p, H_p = W, H
 #W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)  #
 #print('W, H, scaling_factor: ', W, H, scaling_factor)  #
-#eigen_mode = [11]
+#eigen_mode = [15]
 #eigen_mode = [6, 7, 8, 10, 11]
 eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
@@ -88,12 +90,12 @@ for i in range(n_samp_y):
 x_t = []
 y_t = []
 
-for y in range(4):
+'''for y in range(4):
     for x in range(3):
         x_t.append(round(x * 8*sample_step + 3*dist_bound, n_d))
-        y_t.append(round(y * 11*sample_step + dist_bound, n_d))
+        y_t.append(round(y * 11*sample_step + dist_bound, n_d))'''
 
-'''min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 20, n_d)
+min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 20, n_d)
 
 
 def euclidean_distance(x1, y1, x2, y2):
@@ -116,7 +118,7 @@ while i < num_known_points:
         if attempts >= 100:
             x_t, y_t = [], []
             i = 0
-            break'''
+            break
 
 #x_t = x_p
 #y_t = y_p
@@ -176,9 +178,9 @@ model = model.to(device)  # CUDA
 
 history_loss = {'L_f': [], 'L_t': [], 'L_o': []}
 if not relo:
-    #loss_fn = loss.MultiTaskLossWrapper(plate, num_tasks=num_loss)
+    loss_fn = loss.MultiTaskLossWrapper(plate, num_tasks=num_loss)
     #loss_fn = loss.KirchhoffLoss(plate)
-    loss_fn = loss.DWALoss(plate, num_tasks=num_loss)
+    #loss_fn = loss.DWALoss(plate, num_tasks=num_loss)
     kirchhoff_metric = loss.KirchhoffMetric(plate, third_loss=third_loss)
     history_lambda = None
     metric_lam = None
