@@ -7,6 +7,7 @@ from collections import OrderedDict
 import math
 from dataSet import compute_derivatives
 
+omega_zero = 5
 
 class BatchLinear(nn.Linear, MetaModule):
     '''A linear meta-layer that can deal with batched weight matrices and biases, as for instance output by a
@@ -34,7 +35,7 @@ class Sine(nn.Module):
 
     def forward(self, input):
         # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of factor 30
-        return torch.sin(5 * input)
+        return torch.sin(omega_zero * input)
 
 
 class FCBlock(MetaModule):
@@ -124,9 +125,11 @@ class FCBlock(MetaModule):
 class PINNet(nn.Module):
     '''Architecture used by Raissi et al. 2019.'''
 
-    def __init__(self, num_hidden_layers, hidden_features, initial_conditions=True, out_features=1, type='tanh',
+    def __init__(self, omegas, num_known_points, num_hidden_layers, hidden_features, initial_conditions=True, out_features=1, type='tanh',
                  in_features=2, mode='mlp'):
         super().__init__()
+        self.omegas = omegas
+        self.num_known_points = num_known_points
         self.mode = mode
         self.num_hidden_layers = num_hidden_layers
         self.hidden_features = hidden_features
@@ -135,7 +138,7 @@ class PINNet(nn.Module):
                            weight_init=None)
         print(self)
 
-    def forward(self, model_input):
+    def forward(self, model_input, training=True):
         # Enables us to compute gradients w.r.t. input
         coords = model_input['coords']
         x, y = coords[:, :, 0], coords[:, :, 1]
@@ -146,6 +149,8 @@ class PINNet(nn.Module):
         x.requires_grad_(True)
         y.requires_grad_(True)
         o = self.net(torch.cat((x, y), dim=-1))
+        if training:
+            o[self.num_known_points:, :] = o[self.num_known_points:, :] / self.omegas**2  # TODO
         dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
         output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)
         return {'model_in': coords, 'model_out': output}
@@ -234,7 +239,7 @@ def sine_init(m):
         if hasattr(m, 'weight'):
             num_input = m.weight.size(-1)
             # See supplement Sec. 1.5 for discussion of factor 30
-            m.weight.uniform_(-np.sqrt(6 / num_input) / 5, np.sqrt(6 / num_input) / 5)
+            m.weight.uniform_(-np.sqrt(6 / num_input) / omega_zero, np.sqrt(6 / num_input) / omega_zero)
 
 
 def first_layer_sine_init(m):

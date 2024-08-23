@@ -13,78 +13,21 @@ def gradient(y, x, grad_outputs=None):
 
 
 def compute_derivatives(x, y, u):
-    # Inizializza le liste per accumulare i risultati delle derivate
-    dudx_list = []
-    dudy_list = []
+    dudx = gradient(u, x)
+    dudy = gradient(u, y)
 
-    dudxx_list = []
-    dudyy_list = []
+    dudxx = gradient(dudx, x)
+    dudyy = gradient(dudy, y)
 
-    dudxxx_list = []
-    dudxxy_list = []
-    dudyyy_list = []
+    dudxxx = gradient(dudxx, x)
+    dudxxy = gradient(dudxx, y)
+    dudyyy = gradient(dudyy, y)
 
-    dudxxxx_list = []
-    dudxxyy_list = []
-    dudyyyy_list = []
-
-    # Cicla su ciascuna colonna di u (per ogni frequenza)
-    for i in range(u.shape[1]):
-        u_i = u[:, i]  # Estrai la colonna i-esima di u
-
-        # Calcola le derivate per la colonna corrente
-        dudx = gradient(u_i, x)
-        dudy = gradient(u_i, y)
-
-        dudxx = gradient(dudx, x)
-        dudyy = gradient(dudy, y)
-
-        dudxxx = gradient(dudxx, x)
-        dudxxy = gradient(dudxx, y)
-        dudyyy = gradient(dudyy, y)
-
-        dudxxxx = gradient(dudxxx, x)
-        dudxxyy = gradient(dudxxy, y)
-        dudyyyy = gradient(dudyyy, y)
-
-        # Aggiungi i risultati alla lista corrispondente
-        dudx_list.append(dudx)
-        dudy_list.append(dudy)
-
-        dudxx_list.append(dudxx)
-        dudyy_list.append(dudyy)
-
-        dudxxx_list.append(dudxxx)
-        dudxxy_list.append(dudxxy)
-        dudyyy_list.append(dudyyy)
-
-        dudxxxx_list.append(dudxxxx)
-        dudxxyy_list.append(dudxxyy)
-        dudyyyy_list.append(dudyyyy)
-
-    # Converti le liste in tensori con shape [1000, n]
-    dudx = torch.stack(dudx_list, dim=1)
-    dudy = torch.stack(dudy_list, dim=1)
-
-    dudxx = torch.stack(dudxx_list, dim=1).squeeze(-1)
-    dudyy = torch.stack(dudyy_list, dim=1).squeeze(-1)
-
-    dudxxx = torch.stack(dudxxx_list, dim=1)
-    dudxxy = torch.stack(dudxxy_list, dim=1)
-    dudyyy = torch.stack(dudyyy_list, dim=1)
-
-    dudxxxx = torch.stack(dudxxxx_list, dim=1).squeeze(-1)
-    dudxxyy = torch.stack(dudxxyy_list, dim=1).squeeze(-1)
-    dudyyyy = torch.stack(dudyyyy_list, dim=1).squeeze(-1)
+    dudxxxx = gradient(dudxxx, x)
+    dudxxyy = gradient(dudxxy, y)
+    dudyyyy = gradient(dudyyy, y)
 
     return dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy
-
-
-def compute_moments(D, nue, dudxx, dudyy):
-    mx = -D * (dudxx + nue * dudyy)
-    my = -D * (nue * dudxx + dudyy)
-
-    return mx, my
 
 
 def scale_to_target(W, H, target, n_d):
@@ -143,9 +86,7 @@ class KirchhoffDataset(Dataset):
         x_random = torch.rand((self.batch_size_domain,)) * self.W
         y_random = torch.rand((self.batch_size_domain,)) * self.H
 
-        # x_t = np.tile(self.x_t, len(self.omegas))
         x_t = torch.tensor(self.x_t, dtype=torch.float32)
-        # y_t = np.tile(self.y_t, len(self.omegas))
         y_t = torch.tensor(self.y_t, dtype=torch.float32)
         x = torch.cat((x_t, x_random), dim=0)
         y = torch.cat((y_t, y_random), dim=0)
@@ -161,38 +102,28 @@ class KirchhoffDataset(Dataset):
         no = len(self.omegas)
         u_t = np.squeeze(preds[:len(self.x_t), 0:no])
         # print('preds ', preds.shape)
-        x = np.squeeze(x)
-        y = np.squeeze(y)
-        omegas = self.omegas.unsqueeze(0)
         u = np.squeeze(preds[len(self.x_t):, 0:no])
-        # print('u ', u.shape)
-        dudxx = np.squeeze(preds[len(self.x_t):, no:no + no])
-        dudyy = np.squeeze(preds[len(self.x_t):, no + no:no + no * 2])
-        dudxxxx = np.squeeze(preds[len(self.x_t):, no + no * 2:no + no * 3])
-        dudyyyy = np.squeeze(preds[len(self.x_t):, no + no * 3:no + no * 4])
-        dudxxyy = np.squeeze(preds[len(self.x_t):, no + no * 4:no + no * 5])
+        #print('u ', u.shape)
+        dudxx = np.squeeze(preds[len(self.x_t):, no:no + 1])
+        dudyy = np.squeeze(preds[len(self.x_t):, no + 1:no + 2])
+        dudxxxx = np.squeeze(preds[len(self.x_t):, no + 2:no + 3])
+        dudyyyy = np.squeeze(preds[len(self.x_t):, no + 3:no + 4])
+        dudxxyy = np.squeeze(preds[len(self.x_t):, no + 4:no + 5])
 
-        #  Per singola omega
-        omegas = omegas.squeeze(-1)
-        u_t = u_t.squeeze(-1)
-        self.known_disp_concatenate = self.known_disp_concatenate.squeeze(-1)
-        dudxxxx = dudxxxx.squeeze(-1)
-        dudxxyy = dudxxyy.squeeze(-1)
-        dudyyyy = dudyyyy.squeeze(-1)
-
+        if len(self.omegas) == 1:
+            u_t = u_t.unsqueeze(-1)
+        #print('u_t: ', u_t.shape)
+        #print('kdc: ', self.known_disp_concatenate.shape)
         err_t = self.known_disp_concatenate - u_t
-        # print('kdc: ', self.known_disp_concatenate.shape)
-        # print('u_t: ', u_t.shape)
-        # print('u_t: ', u_t.shape)
-        # print('dudxxxx: ', dudxxxx.shape, 'omegas: ', omegas.shape, 'u: ', u.shape, 'err_t: ', err_t.shape)
+        # print('dudxxxx: ', dudxxxx.shape, 'omegas: ', self.omegas.shape, 'u: ', u.shape, 'err_t: ', err_t.shape)
 
-        f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (omegas ** 2) * u)
-        f = f / (omegas ** 2)
+        f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * torch.sum((self.omegas ** 2) * u, dim=-1))
 
-        # f = (dudxxxx + 2 * dudxxyy + dudyyyy - (self.den * self.T * (omegas ** 2)) / self.D * u)
-        # print('omegas: ', omegas.shape)
-        # print('1: ,', (dudxxxx + 2 * dudxxyy + dudyyyy).shape)
-        # print('2: ,', (self.adim_k * (omegas ** 2) * u).shape)
+        #f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.den * self.T / self.D * torch.sum((self.omegas ** 2) * u, dim=-1))
+        #print('AAA: ', self.den * self.T / self.D * self.omegas)
+        #print('AAA: ', self.adim_k * self.omegas)
+        #print('1: ,', (dudxxxx + 2 * dudxxyy + dudyyyy).shape)
+        #print('2: ,', (self.adim_k * torch.sum((self.omegas ** 2) * u, dim=-1)).shape)
         # print('f: ', f.shape)
 
         L_f = f ** 2

@@ -1,24 +1,15 @@
 import torch
+import numpy as np
 
-# Definisci il tensore iniziale
-x = torch.tensor([2.0], requires_grad=True)
-print('x: ', x)
+u = np.ones((10, 5))
+u = torch.tensor(u)
+print('u: ', u.shape)
 
-# Definisci il vettore y
-y = torch.arange(1, 11)
-print('y: ', y)
+omegas = [1, 2, 3, 4, 5]
+omegas = torch.tensor(omegas)
+print('omegas: ', omegas.shape)
 
-# Calcola u = x * y
-u = x * y
-print('u: ', u)
+#o = torch.sum(u * omegas, dim=1)
+u[2:, :] = u[2:, :]/omegas
 
-# Definisci la funzione di cui calcolare il Jacobiano
-def func(x):
-    return x * y
-
-# Calcola il Jacobiano di u rispetto a x
-jacobian = torch.autograd.functional.jacobian(func, x)
-
-# Mostra il risultato
-print('jacobian: ', jacobian)
-
+print('o: ', u)

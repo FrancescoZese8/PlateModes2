@@ -63,7 +63,7 @@ def visualise_prediction(x_p, y_p, omegas, full_known_disp, full_known_disp_conc
     y = y_p.to(device)
 
     c = {'coords': torch.cat([x, y], dim=-1).float()}
-    pred = model(c)['model_out']
+    pred = model(c, training=False)['model_out']
     no = len(omegas)
     u_pred, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = (
         pred[:, 0:no], pred[no:no + 1], pred[no + 1:no + 2], pred[no + 2:no + 3], pred[no + 3:no + 4],
