@@ -65,18 +65,17 @@ def gridSearch_neurons():
     best_NMSE = 10e5
     best_neuron = 0
     best_layer = 0
-    neurons = [64, 128, 160]
+    neurons = [128, 180, 256, 30]
     layers = [2, 3, 4]
     for neuron in neurons:
-        for layer in layers:
-            NMSE = main.main(neuron, layer)
-            if NMSE < best_NMSE:
-                best_NMSE = NMSE
-                best_neuron = neuron
-                best_layer = layer
+        NMSE = main.main(neuron)
+        if NMSE < best_NMSE:
+            best_NMSE = NMSE
+            best_neuron = neuron
+            #best_layer = layer
 
     print('best NMSE:', best_NMSE)
     print('best neuron:', best_neuron)
-    print('best layer:', best_layer)
+    #print('best layer:', best_layer)
 
 gridSearch_neurons()

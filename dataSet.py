@@ -101,14 +101,14 @@ class KirchhoffDataset(Dataset):
         # governing equation loss
         no = len(self.omegas)
         u_t = np.squeeze(preds[:len(self.x_t), 0:no])
-        # print('preds ', preds.shape)
-        u = np.squeeze(preds[len(self.x_t):, 0:no])
+        #print('preds ', preds.shape)
+        u = np.squeeze(preds[:, 0:no])
         #print('u ', u.shape)
-        dudxx = np.squeeze(preds[len(self.x_t):, no:no + 1])
-        dudyy = np.squeeze(preds[len(self.x_t):, no + 1:no + 2])
-        dudxxxx = np.squeeze(preds[len(self.x_t):, no + 2:no + 3])
-        dudyyyy = np.squeeze(preds[len(self.x_t):, no + 3:no + 4])
-        dudxxyy = np.squeeze(preds[len(self.x_t):, no + 4:no + 5])
+        dudxx = np.squeeze(preds[:, no:no + 1])
+        dudyy = np.squeeze(preds[:, no + 1:no + 2])
+        dudxxxx = np.squeeze(preds[:, no + 2:no + 3])
+        dudyyyy = np.squeeze(preds[:, no + 3:no + 4])
+        dudxxyy = np.squeeze(preds[:, no + 4:no + 5])
 
         if len(self.omegas) == 1:
             u_t = u_t.unsqueeze(-1)
@@ -117,9 +117,13 @@ class KirchhoffDataset(Dataset):
         err_t = self.known_disp_concatenate - u_t
         # print('dudxxxx: ', dudxxxx.shape, 'omegas: ', self.omegas.shape, 'u: ', u.shape, 'err_t: ', err_t.shape)
 
-        f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * torch.sum((self.omegas ** 2) * u, dim=-1))
+        #f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * torch.sum((self.omegas ** 2) * u, dim=-1))
 
-        #f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.den * self.T / self.D * torch.sum((self.omegas ** 2) * u, dim=-1))
+        if len(self.omegas) == 1:
+            f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (self.omegas ** 2) * u)
+        else:
+            f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * torch.sum((self.omegas ** 2) * u, dim=-1))
+
         #print('AAA: ', self.den * self.T / self.D * self.omegas)
         #print('AAA: ', self.adim_k * self.omegas)
         #print('1: ,', (dudxxxx + 2 * dudxxyy + dudyyyy).shape)
@@ -127,13 +131,15 @@ class KirchhoffDataset(Dataset):
         # print('f: ', f.shape)
 
         L_f = f ** 2
-        L_t = err_t ** 2
+        L_t = err_t ** 2 #* 0.01
 
         if self.third_loss:
-            dot_products = torch.matmul(u.T, u)
+            '''dot_products = torch.matmul(u.T, u)
             off_diagonal_dot_products = dot_products - torch.diag(torch.diag(dot_products))
             loss_ortogonality = torch.sum(torch.abs(off_diagonal_dot_products))
-            L_o = loss_ortogonality ** 2
+            L_o = loss_ortogonality ** 2'''
+            L_o = 1/u.mean()
+            L_o = L_o ** 2
 
             return {'L_f': L_f, 'L_t': L_t, 'L_o': L_o}
         else:

@@ -9,20 +9,20 @@ import visualization
 import numpy as np
 
 
-#def main(neuron, layer):
+#def main(neuron):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 
-num_epochs = 200
+num_epochs = 250
 n_step = 50
-num_known_points = 15
+num_known_points = 10
 size_norm = 12
 batch_size = 1
 total_length = 1
 lr = 0.001
-batch_size_domain = 1000
+batch_size_domain = 50
 num_hidden_layers = 2
-hidden_features = 80
+hidden_features = 16
 temperature = 0.01
 rho = 0.9
 alpha = 0.99
@@ -37,7 +37,7 @@ opt_model = 'sine'  # mish
 mode = 'pinn'
 clip_grad = 1.0
 use_lbfgs = False
-relo = True
+relo = False
 third_loss = False
 num_loss = 3 if third_loss else 2
 max_epochs_without_improvement = 50
@@ -48,6 +48,8 @@ freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.3
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
          165.3, ]  # ViolinPlateFOD3
+'''freqs = [None, None, None, None, None, None, 0.050319, 0.073155, 0.08924, 0.12955, 0.12955, 0.22584, 0.22584, 0.23677,
+         0.25788, 0.28508, 0.39143, 0.39143, 0.43362]'''
 
 eigen_mode = [15]
 # eigen_mode = [6, 7, 8, 14, 15]
@@ -55,8 +57,13 @@ eigen_mode = [15]
 
 n_d = 6
 W, H, T, E, nue, den = 0.20, 0.35, 0.005, 10e6, 0.28, 420
+# W, H, T, E, nue, den = 10, 10, 0.05, 10e6, 0.28, 420
 D = (E * T ** 3) / (12 * (1 - nue ** 2))  # flexural stiffnes of the plate
 W_p, H_p = W, H
+
+# omegas = [(freqs[i] * 2 * torch.pi) for i in eigen_mode]
+# adim_k = 1
+
 if not adim:
     W, H, scaling_factor = dataSet.scale_to_target(W, H, size_norm, n_d)  #
     print('W, H, scaling_factor: ', W, H, scaling_factor)  #
@@ -74,9 +81,11 @@ else:
     print('adim_k: ', adim_k)
     print('W: ', W, 'H: ', H)
 
+# df = pd.read_csv('ViolinPlateFOD2.csv', sep=';')
 df = pd.read_csv('ViolinPlateFOD2.csv', sep=';')
 df_numeric = df.apply(pd.to_numeric, errors='coerce')
 n_samp_x, n_samp_y = 20, 35
+# n_samp_x, n_samp_y = 50, 50
 
 sample_step = W / n_samp_x
 if round(H / n_samp_y, n_d) != sample_step:
@@ -161,13 +170,13 @@ known_disp_concatenate = torch.stack(known_disp_concatenate, dim=1)
 full_known_disp_concatenate = torch.stack(full_known_disp_concatenate, dim=1)
 omegas = torch.tensor(omegas).to(device)
 
-
 for i in range(len(omegas)):
     for j in range(len(omegas)):
-        dot_products = torch.matmul(full_known_disp_concatenate[:, [i, j]].T, full_known_disp_concatenate[:, [i, j]])
+        dot_products = torch.matmul(full_known_disp_concatenate[:, [i, j]].T,
+                                    full_known_disp_concatenate[:, [i, j]])
         off_diagonal_dot_products = dot_products - torch.diag(torch.diag(dot_products))
         loss_ortogonality = torch.sum(torch.abs(off_diagonal_dot_products))
-        print(i+6, '-', j+6, ': ', loss_ortogonality.item())
+        print(i + 6, '-', j + 6, ': ', loss_ortogonality.item())
 
 plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=total_length, den=den,
                                  omegas=omegas, batch_size_domain=batch_size_domain,

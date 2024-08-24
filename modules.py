@@ -149,8 +149,8 @@ class PINNet(nn.Module):
         x.requires_grad_(True)
         y.requires_grad_(True)
         o = self.net(torch.cat((x, y), dim=-1))
-        if training:
-            o[self.num_known_points:, :] = o[self.num_known_points:, :] / self.omegas**2  # TODO
+        #if training:
+            #o[self.num_known_points:, :] = o[self.num_known_points:, :] / self.omegas**2  # TODO
         dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
         output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)
         return {'model_in': coords, 'model_out': output}
