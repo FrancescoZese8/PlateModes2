@@ -9,28 +9,30 @@ import visualization
 import numpy as np
 
 
-#def main(neuron):
+#def main(m):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
+modules.set_seed(3)
 
 num_epochs = 250
 n_step = 50
-num_known_points = 10
+num_known_points = 6
 size_norm = 12
 batch_size = 1
 total_length = 1
 lr = 0.001
 batch_size_domain = 50
 num_hidden_layers = 2
-hidden_features = 16
+hidden_features = 8
+
 temperature = 0.01
 rho = 0.9
 alpha = 0.99
+lambda_f = 1
 
-# tutti modi, NMSE = 0.33: 1200e, 50s, 128n, relo:1, 0.99, 0.999
-# tutti modi, NMSE = 0.132: 500e, 256n, relo: 0.001, 0.9, 0.99.  12 punti random
-
-# modo [14], NMSE = 0.03: 150 e, 8n, multitask, 1.1
+#  [15] NMSE: 0.14, 8n, 6nkp, 250e
+#  15: 8n, 1.3, seed4, 250e, 1000bsd
+#  16: 8n, 1.3, seed3, 250e, 1000bsd
 
 steps_til_summary = 10
 opt_model = 'sine'  # mish
@@ -40,20 +42,22 @@ use_lbfgs = False
 relo = False
 third_loss = False
 num_loss = 3 if third_loss else 2
-max_epochs_without_improvement = 50
+max_epochs_without_improvement = 10
 color = 'viridis'  # bwr
 adim = True
+dynamic_CP = True
+
+# PROVO Xavier in init, Provo funzione di attivazione paper, provo mac
+# omega_0 a 8, provare sine init con normal
 
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
          165.3, ]  # ViolinPlateFOD3
-'''freqs = [None, None, None, None, None, None, 0.050319, 0.073155, 0.08924, 0.12955, 0.12955, 0.22584, 0.22584, 0.23677,
-         0.25788, 0.28508, 0.39143, 0.39143, 0.43362]'''
 
-eigen_mode = [15]
+eigen_mode = [16]
 # eigen_mode = [6, 7, 8, 14, 15]
-#eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+#eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 15, 16]
 
 n_d = 6
 W, H, T, E, nue, den = 0.20, 0.35, 0.005, 10e6, 0.28, 420
@@ -74,7 +78,7 @@ else:
     W_norm = max(omegas)
     # W_norm = 285.70900228807017
     omegas = [omegas[i] / W_norm for i in range(len(omegas))]
-    L_norm = (D / (den * T * W_norm ** 2)) ** (1 / 4) / 1  # TODO
+    L_norm = (D / (den * T * W_norm ** 2)) ** (1 / 4) / 1.3  # TODO
     W = W / L_norm
     H = H / L_norm
     adim_k = (den * T * W_norm ** 2 * L_norm ** 4) / D
@@ -113,7 +117,6 @@ def euclidean_distance(x1, y1, x2, y2):
     return np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 
 i = 0
-np.random.seed(3)
 while i < num_known_points:
     attempts = 0
     while True:
@@ -161,22 +164,28 @@ for i in range(len(eigen_mode)):
     full_known_disp = torch.tensor(full_known_disp)
     full_known_disp_concatenate.append(full_known_disp)
 
-    '''visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
+    visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
                                  image_width=n_samp_x,
                                  image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, sample_step=sample_step,
                                  dist_bound=dist_bound, n_d=n_d, size_norm=size_norm,
-                                 color=color)'''
+                                 color=color)
 known_disp_concatenate = torch.stack(known_disp_concatenate, dim=1)
 full_known_disp_concatenate = torch.stack(full_known_disp_concatenate, dim=1)
 omegas = torch.tensor(omegas).to(device)
 
-for i in range(len(omegas)):
+for i in range(len(omegas)):  # MAC
     for j in range(len(omegas)):
-        dot_products = torch.matmul(full_known_disp_concatenate[:, [i, j]].T,
-                                    full_known_disp_concatenate[:, [i, j]])
-        off_diagonal_dot_products = dot_products - torch.diag(torch.diag(dot_products))
-        loss_ortogonality = torch.sum(torch.abs(off_diagonal_dot_products))
-        print(i + 6, '-', j + 6, ': ', loss_ortogonality.item())
+        numerator = abs(torch.matmul(full_known_disp_concatenate[:, i].T,
+                                     full_known_disp_concatenate[:, j])) ** 2
+
+        denominator = (torch.matmul(full_known_disp_concatenate[:, i].T,
+                                    full_known_disp_concatenate[:, i])
+                       * torch.matmul(full_known_disp_concatenate[:, j].T,
+                                      full_known_disp_concatenate[:, j]))
+        MAC = numerator / denominator
+        off_diagonal_MAC = MAC
+        loss_ortogonality = torch.sum(torch.abs(off_diagonal_MAC))
+        print(f" {i + 6} e {j + 6}: {loss_ortogonality.item()}")
 
 plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=total_length, den=den,
                                  omegas=omegas, batch_size_domain=batch_size_domain,
@@ -184,7 +193,7 @@ plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H, total_length=
                                  max_norm=max_norm,
                                  third_loss=third_loss, device=device, sample_step=sample_step,
                                  dist_bound=dist_bound,
-                                 n_samp_x=n_samp_x, n_samp_y=n_samp_y)
+                                 n_samp_x=n_samp_x, n_samp_y=n_samp_y, dynamic_CP=dynamic_CP, lambda_f=lambda_f)
 
 data_loader = DataLoader(plate, shuffle=True, batch_size=batch_size, pin_memory=False, num_workers=0)
 model = modules.PINNet(omegas=omegas, num_known_points=num_known_points, num_hidden_layers=num_hidden_layers,
@@ -194,7 +203,7 @@ model = model.to(device)  # CUDA
 
 history_loss = {'L_f': [], 'L_t': [], 'L_o': []}
 if not relo:
-    #  loss_fn = loss.MultiTaskLossWrapper(plate, num_tasks=num_loss)
+    # loss_fn = loss.MultiTaskLossWrapper(plate, num_tasks=num_loss)
     loss_fn = loss.KirchhoffLoss(plate)
     # loss_fn = loss.DWALoss(plate, num_tasks=num_loss)
     kirchhoff_metric = loss.KirchhoffMetric(plate, third_loss=third_loss)
@@ -222,4 +231,16 @@ mean_NMSE = visualization.visualise_prediction(x_p, y_p, omegas, full_known_disp
 print('mean_NMSE: ', mean_NMSE)
 
 visualization.visualise_loss(third_loss, metric_lam, history_loss, history_lambda)
+torch.save(model.state_dict(), '/nas/home/fzese/plateModes/model_weights.pth')
+
+# Per ricaricare il modello in futuro
+# model = PINNet(omegas, num_known_points, num_hidden_layers, hidden_features, ...)
+# model.load_state_dict(torch.load('model_weights.pth'))
+
+# Visualizzare i pesi finali
+state_dict = model.state_dict()
+for name, param in state_dict.items():
+    print(f"Layer: {name} | Shape: {param.shape}")
+    print(param)
+
     #return mean_NMSE

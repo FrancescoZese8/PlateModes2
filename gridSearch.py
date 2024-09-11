@@ -33,12 +33,11 @@ def gridSearch_modes():
     # 7: 0.0094905 / 8: 0.012216 / 9: 0.016826 / 11: 0.03027 / 13: 0.030792 / 14: 0.033438 / 18: 0.057536
     # /20: 0.06447 / 22: 0.074002 / 23: 0.078311 / 24: 0.082339 / 25: 0.0975 / 27: 0.099372 / 30: 0.10527 / 32: 0.13573 / 33: 0.13573
     # /36: 0.14482 / 39: 0.14971
-    mode = [22, 23, 26]
-    n_p = [10, 15]
-    for m in mode:
-        for n in n_p:
-            NMSE = main.main(m, n)
-            print('NMSE: ', NMSE, 'mode: ', m, 'n_p: ', n)
+    modes = [6, 7, 8, 9, 10, 11, 12, 13, 15, 16]
+    nkp = [6, 7, 8, 9, 10]
+    for m in modes:
+        NMSE = main.main(m)
+        print('NMSE: ', NMSE)
 
 
 def gridSearch_epochs():
@@ -65,17 +64,18 @@ def gridSearch_neurons():
     best_NMSE = 10e5
     best_neuron = 0
     best_layer = 0
-    neurons = [128, 180, 256, 30]
-    layers = [2, 3, 4]
-    for neuron in neurons:
-        NMSE = main.main(neuron)
-        if NMSE < best_NMSE:
-            best_NMSE = NMSE
-            best_neuron = neuron
-            #best_layer = layer
+    neurons = [32]
+    layers = [2, 3, 4, 5, 6]
+    for n in neurons:
+        for l in layers:
+            NMSE = main.main(n, l)
+            if NMSE < best_NMSE:
+                best_NMSE = NMSE
+                best_neuron = n
+                best_layer = l
 
     print('best NMSE:', best_NMSE)
     print('best neuron:', best_neuron)
-    #print('best layer:', best_layer)
+    print('best layer:', best_layer)
 
-gridSearch_neurons()
+gridSearch_modes()

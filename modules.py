@@ -6,8 +6,10 @@ import numpy as np
 from collections import OrderedDict
 import math
 from dataSet import compute_derivatives
+import matplotlib.pyplot as plt
 
 omega_zero = 5
+
 
 class BatchLinear(nn.Linear, MetaModule):
     '''A linear meta-layer that can deal with batched weight matrices and biases, as for instance output by a
@@ -36,6 +38,18 @@ class Sine(nn.Module):
     def forward(self, input):
         # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of factor 30
         return torch.sin(omega_zero * input)
+
+
+class Rowdy(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.alpha_1 = nn.Parameter(torch.tensor(0.1))
+        self.alpha_2 = nn.Parameter(torch.tensor(0.1))
+
+    def forward(self, input):
+        return (torch.sin(omega_zero * input) +
+                self.alpha_1 * torch.sin(2 * omega_zero * input) +
+                self.alpha_2 * torch.sin(3 * omega_zero * input))
 
 
 class FCBlock(MetaModule):
@@ -125,7 +139,8 @@ class FCBlock(MetaModule):
 class PINNet(nn.Module):
     '''Architecture used by Raissi et al. 2019.'''
 
-    def __init__(self, omegas, num_known_points, num_hidden_layers, hidden_features, initial_conditions=True, out_features=1, type='tanh',
+    def __init__(self, omegas, num_known_points, num_hidden_layers, hidden_features, initial_conditions=True,
+                 out_features=1, type='tanh',
                  in_features=2, mode='mlp'):
         super().__init__()
         self.omegas = omegas
@@ -149,8 +164,8 @@ class PINNet(nn.Module):
         x.requires_grad_(True)
         y.requires_grad_(True)
         o = self.net(torch.cat((x, y), dim=-1))
-        #if training:
-            #o[self.num_known_points:, :] = o[self.num_known_points:, :] / self.omegas**2  # TODO
+        if training:
+            o[self.num_known_points:, :] = o[self.num_known_points:, :] / self.omegas ** 2  # TODO
         dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
         output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)
         return {'model_in': coords, 'model_out': output}
@@ -230,7 +245,7 @@ def init_weights_elu(m):
 def init_weights_xavier(m):
     if type(m) == BatchLinear or type(m) == nn.Linear:
         if hasattr(m, 'weight'):
-            nn.init.xavier_normal_(m.weight, 1.0)
+            nn.init.xavier_uniform_(m.weight, 1.0)
             nn.init.zeros_(m.bias)
 
 
@@ -254,3 +269,11 @@ def first_layer_silu_init(m):
     with torch.no_grad():
         if hasattr(m, 'weight'):
             nn.init.xavier_normal_(m.weight, 1.0)
+
+
+def set_seed(seed):
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
