@@ -9,30 +9,28 @@ import visualization
 import numpy as np
 
 
-#def main(m):
+#def main(n, l):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 modules.set_seed(3)
 
-num_epochs = 250
+num_epochs = 400
 n_step = 50
-num_known_points = 6
+num_known_points = 10
 size_norm = 12
 batch_size = 1
 total_length = 1
 lr = 0.001
-batch_size_domain = 50
+batch_size_domain = 1000
 num_hidden_layers = 2
-hidden_features = 8
+hidden_features = 64
 
 temperature = 0.01
 rho = 0.9
 alpha = 0.99
 lambda_f = 1
 
-#  [15] NMSE: 0.14, 8n, 6nkp, 250e
-#  15: 8n, 1.3, seed4, 250e, 1000bsd
-#  16: 8n, 1.3, seed3, 250e, 1000bsd
+#  [6, 11]: 2, 32
 
 steps_til_summary = 10
 opt_model = 'sine'  # mish
@@ -45,7 +43,7 @@ num_loss = 3 if third_loss else 2
 max_epochs_without_improvement = 10
 color = 'viridis'  # bwr
 adim = True
-dynamic_CP = True
+dynamic_CP = False
 
 # PROVO Xavier in init, Provo funzione di attivazione paper, provo mac
 # omega_0 a 8, provare sine init con normal
@@ -55,7 +53,7 @@ freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.3
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
          165.3, ]  # ViolinPlateFOD3
 
-eigen_mode = [16]
+eigen_mode = [6, 7, 8, 9, 10, 11, 12]
 # eigen_mode = [6, 7, 8, 14, 15]
 #eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 15, 16]
 
@@ -76,16 +74,21 @@ if not adim:
 else:
     omegas = [(freqs[i] * 2 * torch.pi) for i in eigen_mode]
     W_norm = max(omegas)
-    # W_norm = 285.70900228807017
     omegas = [omegas[i] / W_norm for i in range(len(omegas))]
     L_norm = (D / (den * T * W_norm ** 2)) ** (1 / 4) / 1.3  # TODO
+    print('L_norm: ', L_norm)
+    #L_norm = 0.020566912384165324
     W = W / L_norm
     H = H / L_norm
     adim_k = (den * T * W_norm ** 2 * L_norm ** 4) / D
     print('adim_k: ', adim_k)
     print('W: ', W, 'H: ', H)
 
-# df = pd.read_csv('ViolinPlateFOD2.csv', sep=';')
+    # L_norm = 0.029, k = 0.35, omegas = 1 ---> NMSE = 0.56
+    # L_norm = 0.021, k = 0.35, omegas = 0.48 ---> NMSE = 0.22
+    # L_norm = 0.038, k = 1, o omegas = 1 ---> NMSE = 0.38
+    # L_norm = 0.019, k = 0.062, o omegas = 1 ---> NMSE = 0.9
+
 df = pd.read_csv('ViolinPlateFOD2.csv', sep=';')
 df_numeric = df.apply(pd.to_numeric, errors='coerce')
 n_samp_x, n_samp_y = 20, 35
@@ -164,11 +167,11 @@ for i in range(len(eigen_mode)):
     full_known_disp = torch.tensor(full_known_disp)
     full_known_disp_concatenate.append(full_known_disp)
 
-    visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
+    '''visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
                                  image_width=n_samp_x,
                                  image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, sample_step=sample_step,
                                  dist_bound=dist_bound, n_d=n_d, size_norm=size_norm,
-                                 color=color)
+                                 color=color)'''
 known_disp_concatenate = torch.stack(known_disp_concatenate, dim=1)
 full_known_disp_concatenate = torch.stack(full_known_disp_concatenate, dim=1)
 omegas = torch.tensor(omegas).to(device)
@@ -238,9 +241,9 @@ torch.save(model.state_dict(), '/nas/home/fzese/plateModes/model_weights.pth')
 # model.load_state_dict(torch.load('model_weights.pth'))
 
 # Visualizzare i pesi finali
-state_dict = model.state_dict()
-for name, param in state_dict.items():
-    print(f"Layer: {name} | Shape: {param.shape}")
-    print(param)
+#state_dict = model.state_dict()
+#for name, param in state_dict.items():
+#    print(f"Layer: {name} | Shape: {param.shape}")
+#    print(param)
 
     #return mean_NMSE

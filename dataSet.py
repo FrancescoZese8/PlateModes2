@@ -58,6 +58,8 @@ class KirchhoffDataset(Dataset):
         self.known_disp_concatenate = known_disp_concatenate.to(device)
         self.x_t = torch.tensor(x_t, dtype=torch.float32).to(device)
         self.y_t = torch.tensor(y_t, dtype=torch.float32).to(device)
+        self.x_refined = None
+        self.y_refined = None
         self.adim_k = adim_k
         self.max_norm = max_norm
         self.third_loss = third_loss
@@ -72,8 +74,8 @@ class KirchhoffDataset(Dataset):
         self.counter = 0
         self.dynamic_CP = dynamic_CP
         self.lambda_f = lambda_f
-        if dynamic_CP:
-            self.initialize_grid()
+        # if dynamic_CP:
+        # self.initialize_grid()
 
     def initialize_grid(self):
 
@@ -132,25 +134,17 @@ class KirchhoffDataset(Dataset):
             y = y[..., None]
             self.counter = self.counter + 1
         else:
-            added_points = self.batch_size_domain
+            added_points = self.batch_size_domain//3
             refining_step = 0.5
-            if self.residuals is not None and (self.counter % 5 == 0):  # TODO
-                self.x = self.x[len(self.x_t):]
-                self.y = self.y[len(self.y_t):]
-                self.residuals = self.residuals[len(self.x_t):]
-                prob_dist = abs(self.residuals) / abs(self.residuals).sum()
+            if self.residuals is not None and (self.counter % 2500 == 0):  # TODO
 
-                negative_prob_dist = (1 - prob_dist) / (1 - prob_dist).sum()
+                prob_dist = abs(self.residuals) / abs(self.residuals).sum()
 
                 # Calcola la distribuzione cumulativa
                 cumsum_probs = torch.cumsum(prob_dist, dim=0)
                 random_values = torch.rand(added_points).to(self.device)
-
-                negative_cumsum_probs = torch.cumsum(negative_prob_dist, dim=0)
-                negative_random_values = torch.rand(added_points).to(self.device)
                 # Trova gli indici corrispondenti ai numeri casuali nella distribuzione cumulativa
                 sampled_indices = torch.searchsorted(cumsum_probs, random_values)
-                negative_sampled_indices = torch.searchsorted(negative_cumsum_probs, negative_random_values)
                 x_sampled = self.x[sampled_indices]
                 y_sampled = self.y[sampled_indices]
 
@@ -158,50 +152,41 @@ class KirchhoffDataset(Dataset):
                 lambda_x = (torch.rand(added_points, device=self.device) * 2 - 1)  # random between -1 and 1
                 lambda_y = (torch.rand(added_points, device=self.device) * 2 - 1)
 
+                #old_x_refined, old_y_refined = (self.x_refined, self.y_refined) if self.x_refined is not None else (None, None)
                 x_refined = x_sampled + lambda_x * refining_step
                 y_refined = y_sampled + lambda_y * refining_step
-                x_refined = torch.clamp(x_refined, min=0, max=self.W)
-                y_refined = torch.clamp(y_refined, min=0, max=self.H)
+                self.x_refined = torch.clamp(x_refined, min=0, max=self.W)
+                self.y_refined = torch.clamp(y_refined, min=0, max=self.H)
+                #if old_x_refined is not None:
+                    #self.x_refined = torch.cat((self.x_refined, old_x_refined), dim=0)
+                    #self.y_refined = torch.cat((self.y_refined, old_y_refined), dim=0)
 
-                #  elimino i collocation points che contribuiscono meno alla loss
-                mask = torch.ones(self.x.size(0), dtype=torch.bool)
-                mask[negative_sampled_indices] = False
-                #print("Number of points before removal: ", len(self.x))
-                self.x = self.x[mask]
-                self.y = self.y[mask]
-                #print("Number of points after removal: ", len(self.x))
-                #print("Number of points removed: ", len(negative_sampled_indices))
-
-                self.x = torch.cat((self.x, x_refined), dim=0)
-                self.y = torch.cat((self.y, y_refined), dim=0)
-                self.x = torch.cat((self.x_t, self.x), dim=0)
-                self.y = torch.cat((self.y_t, self.y), dim=0)
-
-                if self.counter % 2000 == 0:
-                    x_plot = self.x[len(self.x_t):].detach().cpu().numpy()
-                    y_plot = self.y[len(self.y_t):].detach().cpu().numpy()
-                    x_t_plot = self.x[:len(self.x_t)].detach().cpu().numpy()
-                    y_t_plot = self.y[:len(self.y_t)].detach().cpu().numpy()
-                    x_refined_plot = x_refined.detach().cpu().numpy()
-                    y_refined_plot = y_refined.detach().cpu().numpy()
+                if self.counter % 2500 == 0:
+                    x_t_plot = self.x_t.detach().cpu().numpy()
+                    y_t_plot = self.y_t.detach().cpu().numpy()
+                    x_refined_plot = self.x_refined.detach().cpu().numpy()
+                    y_refined_plot = self.y_refined.detach().cpu().numpy()
                     plt.figure(figsize=(6, 10))
-                    plt.scatter(x_plot, y_plot, c='blue', label='Collocation Points', alpha=0.5)
                     plt.scatter(x_t_plot, y_t_plot, c='black', label='Known Points', alpha=1, s=100)
-                    plt.scatter(x_refined_plot, y_refined_plot, c='red', label='New Refined Points', alpha=0.7)
+                    plt.scatter(x_refined_plot, y_refined_plot, c='red', label='Refined Points', alpha=0.7)
                     plt.xlabel('x')
                     plt.ylabel('y')
                     plt.gca().set_aspect('equal', adjustable='box')
-                    plt.title('Collocation Points %s' % len(self.x))
+                    plt.title('Refined Collocation Points %s' % len(self.x_refined))
                     plt.legend()
                     plt.grid(True)
                     plt.show()
 
             self.counter = self.counter + 1
-            #x_random = (torch.rand((self.batch_size_domain,)) * self.W).to(self.device)
-            #y_random = (torch.rand((self.batch_size_domain,)) * self.H).to(self.device)
-            #x = torch.cat((self.x, x_random), dim=0)
-            #y = torch.cat((self.y, y_random), dim=0)
-            #print('X: ', x.shape)
+            x_random = (torch.rand((self.batch_size_domain,)) * self.W).to(self.device)
+            y_random = (torch.rand((self.batch_size_domain,)) * self.H).to(self.device)
+            if self.x_refined is None:
+                self.x = torch.cat((self.x_t, x_random), dim=0)
+                self.y = torch.cat((self.y_t, y_random), dim=0)
+            else:
+                self.x = torch.cat((self.x_t, x_random, self.x_refined), dim=0)
+                self.y = torch.cat((self.y_t, y_random, self.y_refined), dim=0)
+            # print('X: ', x.shape)
             x = self.x[..., None]
             y = self.y[..., None]
         return x, y
@@ -228,23 +213,26 @@ class KirchhoffDataset(Dataset):
 
         if len(self.omegas) == 1:
             f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (self.omegas ** 2) * u)
+            #f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (0.3501277966457757 * (0.1258 ** 2) * u)
         else:
             f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * torch.sum((self.omegas ** 2) * u, dim=-1))
+            #print('omegas: ', self.omegas)
 
         # print('AAA: ', self.den * self.T / self.D * self.omegas)
         # print('AAA: ', self.adim_k * self.omegas)
         # print('1: ,', (dudxxxx + 2 * dudxxyy + dudyyyy).shape)
         # print('2: ,', (self.adim_k * torch.sum((self.omegas ** 2) * u, dim=-1)).shape)
-        #print('f: ', f.shape)
+        # print('f: ', f.shape)
 
         self.residuals = f
 
         L_f = f ** 2 * self.lambda_f
         L_t = err_t ** 2
 
-        dot_products = torch.matmul(u.T, u)
-        MAC_matrix = torch.zeros_like(dot_products)
         if self.third_loss:
+            dot_products = torch.matmul(u.T, u)
+            MAC_matrix = torch.zeros_like(dot_products)
+
             for i in range(u.shape[1]):
                 for j in range(u.shape[1]):
                     numerator = (torch.matmul(u[:, i].T, u[:, j])) ** 2

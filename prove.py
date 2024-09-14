@@ -1,15 +1,10 @@
 import torch
-import numpy as np
 
-u = np.ones((10, 5))
-u = torch.tensor(u)
-print('u: ', u.shape)
+u = matrix = torch.tensor([[1, 1],
+                       [2, 2],
+                       [3, 3]])
 
-omegas = [1, 2, 3, 4, 5]
-omegas = torch.tensor(omegas)
-print('omegas: ', omegas.shape)
-
-#o = torch.sum(u * omegas, dim=1)
-u[2:, :] = u[2:, :]/omegas
-
-print('o: ', u)
+omegas = torch.tensor([1, 2])
+print('u: ', u.shape, 'omegas: ', omegas.shape)
+f = torch.sum(omegas * u, dim=-1)
+print('f: ', f)

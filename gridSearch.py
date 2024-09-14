@@ -60,22 +60,21 @@ def gridSearch_epochs():
     print('best_epochs: ', best_epochs)
     print('best_steps: ', best_steps)
 
+
 def gridSearch_neurons():
-    best_NMSE = 10e5
-    best_neuron = 0
-    best_layer = 0
-    neurons = [32]
-    layers = [2, 3, 4, 5, 6]
+    results = []
+    neurons = [32, 40, 50, 64, 128]
+    layers = [2, 3, 4]
+
     for n in neurons:
         for l in layers:
             NMSE = main.main(n, l)
-            if NMSE < best_NMSE:
-                best_NMSE = NMSE
-                best_neuron = n
-                best_layer = l
+            results.append((NMSE, n, l))
 
-    print('best NMSE:', best_NMSE)
-    print('best neuron:', best_neuron)
-    print('best layer:', best_layer)
+    results.sort(key=lambda x: x[0])
 
-gridSearch_modes()
+    print("Classifica NMSE:")
+    for i, (NMSE, neuron, layer) in enumerate(results):
+        print(f"{i + 1}. NMSE: {NMSE}, Neurons: {neuron}, Layers: {layer}")
+
+gridSearch_neurons()
