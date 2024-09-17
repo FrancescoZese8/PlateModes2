@@ -2,8 +2,8 @@ import main
 
 
 def gridSearch_Relobralo():
-    tmps = [1, 10e-03]  # , 10e-05
-    rhos = [0.5, 0.99]
+    tmps = [1, 10e-02, 10e-02]  # , 10e-05
+    rhos = [0.1, 0.5, 0.99]
     alphas = [0.1, 0.99]
     best_NMSE = 10e5
     best_tmp = 0
@@ -63,8 +63,8 @@ def gridSearch_epochs():
 
 def gridSearch_neurons():
     results = []
-    neurons = [32, 40, 50, 64, 128]
-    layers = [2, 3, 4]
+    neurons = [16]
+    layers = [8, 10, 12, 14, 16, 18]
 
     for n in neurons:
         for l in layers:

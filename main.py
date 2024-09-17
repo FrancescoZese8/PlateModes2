@@ -14,23 +14,25 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 modules.set_seed(3)
 
-num_epochs = 400
+num_epochs = 250
 n_step = 50
 num_known_points = 10
 size_norm = 12
 batch_size = 1
 total_length = 1
 lr = 0.001
-batch_size_domain = 1000
+batch_size_domain = 50
 num_hidden_layers = 2
-hidden_features = 64
+hidden_features = 70
 
-temperature = 0.01
+temperature = 1
 rho = 0.9
-alpha = 0.99
+alpha = 0.9
 lambda_f = 1
 
 #  [6, 11]: 2, 32
+#  [6-12]: 2, 70
+#  [6-13]: 2, 70 NMSE: 0.21
 
 steps_til_summary = 10
 opt_model = 'sine'  # mish
@@ -39,23 +41,20 @@ clip_grad = 1.0
 use_lbfgs = False
 relo = False
 third_loss = False
-num_loss = 3 if third_loss else 2
-max_epochs_without_improvement = 10#
-color = 'viridis'  # bwr
 adim = True
 dynamic_CP = False
+num_loss = 3 if third_loss else 2
+max_epochs_without_improvement = 10
+color = 'viridis'  # bwr
 
-# PROVO Xavier in init, Provo funzione di attivazione paper, provo mac
-# omega_0 a 8, provare sine init con normal
 
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
          165.3, ]  # ViolinPlateFOD3
 
-eigen_mode = [6, 7, 8, 9, 10, 11, 12]
-# eigen_mode = [6, 7, 8, 14, 15]
-#eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 15, 16]
+#eigen_mode = [14]
+eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13]
 
 n_d = 6
 W, H, T, E, nue, den = 0.20, 0.35, 0.005, 10e6, 0.28, 420
@@ -167,11 +166,11 @@ for i in range(len(eigen_mode)):
     full_known_disp = torch.tensor(full_known_disp)
     full_known_disp_concatenate.append(full_known_disp)
 
-    '''visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
+    visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
                                  image_width=n_samp_x,
                                  image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, sample_step=sample_step,
                                  dist_bound=dist_bound, n_d=n_d, size_norm=size_norm,
-                                 color=color)'''
+                                 color=color)
 known_disp_concatenate = torch.stack(known_disp_concatenate, dim=1)
 full_known_disp_concatenate = torch.stack(full_known_disp_concatenate, dim=1)
 omegas = torch.tensor(omegas).to(device)
