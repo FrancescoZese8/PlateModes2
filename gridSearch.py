@@ -63,8 +63,8 @@ def gridSearch_epochs():
 
 def gridSearch_neurons():
     results = []
-    neurons = [16]
-    layers = [8, 10, 12, 14, 16, 18]
+    neurons = [32, 50, 60, 70, 100]
+    layers = [2]
 
     for n in neurons:
         for l in layers:
@@ -77,4 +77,20 @@ def gridSearch_neurons():
     for i, (NMSE, neuron, layer) in enumerate(results):
         print(f"{i + 1}. NMSE: {NMSE}, Neurons: {neuron}, Layers: {layer}")
 
-gridSearch_neurons()
+def gridSearch_seed():
+    results = []
+    seeds = [1, 2, 4, 5, 6]
+    modes = [11, 13, 14, 15, 16]
+    mean_NMSE = 0
+    for s in seeds:
+        for m in modes:
+            NMSE = main.main(s, m)
+            mean_NMSE += NMSE
+
+        mean_NMSE = mean_NMSE / len(modes)
+        results.append((mean_NMSE, s))
+    print("Classifica NMSE:")
+    for i, (NMSE, seed) in enumerate(results):
+        print(f"{i + 1}. NMSE: {NMSE}, Seed: {seed}")
+
+gridSearch_seed()

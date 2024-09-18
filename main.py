@@ -8,26 +8,25 @@ import pandas as pd
 import visualization
 import numpy as np
 
-
 #def main(n, l):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 modules.set_seed(3)
 
-num_epochs = 250
+num_epochs = 150
 n_step = 50
 num_known_points = 10
 size_norm = 12
 batch_size = 1
 total_length = 1
-lr = 0.001
-batch_size_domain = 50
+lr = 0.0001
+batch_size_domain = 100
 num_hidden_layers = 2
-hidden_features = 70
+hidden_features = 8
 
-temperature = 1
-rho = 0.9
-alpha = 0.9
+temperature = 0.01
+rho = 0.9999
+alpha = 0.999
 lambda_f = 1
 
 #  [6, 11]: 2, 32
@@ -44,17 +43,16 @@ third_loss = False
 adim = True
 dynamic_CP = False
 num_loss = 3 if third_loss else 2
-max_epochs_without_improvement = 10
+max_epochs_without_improvement = 50
 color = 'viridis'  # bwr
-
 
 freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.396, 25.138, 28.221, 34.876,
          37.256, 45.472, 51.651, 56.464, 59.474, 59.625, 69.244, 71.409, 71.434, 88.497, 88.545, 95.667,
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
          165.3, ]  # ViolinPlateFOD3
 
-#eigen_mode = [14]
-eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13]
+eigen_mode = [13]
+#eigen_mode = [6, 7, 8, 9, 10, 11, 12, 15]
 
 n_d = 6
 W, H, T, E, nue, den = 0.20, 0.35, 0.005, 10e6, 0.28, 420
@@ -76,7 +74,7 @@ else:
     omegas = [omegas[i] / W_norm for i in range(len(omegas))]
     L_norm = (D / (den * T * W_norm ** 2)) ** (1 / 4) / 1.3  # TODO
     print('L_norm: ', L_norm)
-    #L_norm = 0.020566912384165324
+    # L_norm = 0.020566912384165324
     W = W / L_norm
     H = H / L_norm
     adim_k = (den * T * W_norm ** 2 * L_norm ** 4) / D
@@ -115,8 +113,10 @@ y_t = []
 
 min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 20, n_d)
 
+
 def euclidean_distance(x1, y1, x2, y2):
     return np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+
 
 i = 0
 while i < num_known_points:
@@ -151,7 +151,6 @@ max_val = 0
         min_val = min_val_part
     if max_val_part > max_val:
         max_val = max_val_part'''
-
 for i in range(len(eigen_mode)):
     full_known_disp = full_known_disp_csv[:, eigen_mode[i]]
     min_val = torch.min(full_known_disp)
@@ -165,12 +164,11 @@ for i in range(len(eigen_mode)):
     known_disp_concatenate.append(known_disp)
     full_known_disp = torch.tensor(full_known_disp)
     full_known_disp_concatenate.append(full_known_disp)
-
-    visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
+    '''visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
                                  image_width=n_samp_x,
                                  image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, sample_step=sample_step,
                                  dist_bound=dist_bound, n_d=n_d, size_norm=size_norm,
-                                 color=color)
+                                 color=color)'''
 known_disp_concatenate = torch.stack(known_disp_concatenate, dim=1)
 full_known_disp_concatenate = torch.stack(full_known_disp_concatenate, dim=1)
 omegas = torch.tensor(omegas).to(device)
@@ -205,9 +203,9 @@ model = model.to(device)  # CUDA
 
 history_loss = {'L_f': [], 'L_t': [], 'L_o': []}
 if not relo:
-    # loss_fn = loss.MultiTaskLossWrapper(plate, num_tasks=num_loss)
+    #loss_fn = loss.MultiTaskLossWrapper(plate, num_tasks=num_loss)
     loss_fn = loss.KirchhoffLoss(plate)
-    # loss_fn = loss.DWALoss(plate, num_tasks=num_loss)
+    #loss_fn = loss.DWALoss(plate, num_tasks=num_loss)
     kirchhoff_metric = loss.KirchhoffMetric(plate, third_loss=third_loss)
     history_lambda = None
     metric_lam = None
@@ -240,8 +238,8 @@ torch.save(model.state_dict(), '/nas/home/fzese/plateModes/model_weights.pth')
 # model.load_state_dict(torch.load('model_weights.pth'))
 
 # Visualizzare i pesi finali
-#state_dict = model.state_dict()
-#for name, param in state_dict.items():
+# state_dict = model.state_dict()
+# for name, param in state_dict.items():
 #    print(f"Layer: {name} | Shape: {param.shape}")
 #    print(param)
 

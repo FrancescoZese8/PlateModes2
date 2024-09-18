@@ -58,7 +58,7 @@ class FCBlock(MetaModule):
     '''
 
     def __init__(self, in_features, out_features, num_hidden_layers, hidden_features,
-                 outermost_linear=False, nonlinearity='relu', weight_init=None):
+                 outermost_linear=True, nonlinearity='relu', weight_init=None):
         super().__init__()
 
         self.first_layer_init = None

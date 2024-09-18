@@ -17,31 +17,30 @@ class DWALoss(torch.nn.Module):
         self.plate = plate
         self.num_tasks = num_tasks
         self.prev_losses = [1.0 for _ in range(num_tasks)]  # Inizializza con 1.0
+        self.T = 2  # Fattore di temperatura per il calcolo dei pesi dinamici
 
     def call(self, preds, xy, epoch):
         xy = xy['coords']
         x, y = xy[:, :, 0], xy[:, :, 1]
         preds = preds['model_out']
 
-        # Calcola le perdite individuali
         losses = self.plate.compute_loss(x, y, preds)
         weighted_losses = {}
 
-        # Aggiorna i pesi utilizzando la variazione delle perdite
-        if epoch > 0:
+        if epoch > 1:
             ratios = [loss.mean().item() / self.prev_losses[i] for i, loss in enumerate(losses.values())]
-            total_ratio = sum(ratios)
+            weights = [self.num_tasks * torch.exp(torch.tensor(ratio / self.T)) for ratio in ratios]
+            total_weight = sum(weights)
+            weights = [w / total_weight for w in weights]
+
             for i, (name, loss) in enumerate(losses.items()):
-                weight = self.num_tasks * ratios[i] / total_ratio
-                weighted_losses[name] = weight * loss.mean()
+                weighted_losses[name] = weights[i] * loss.mean()
         else:
             for name, loss in losses.items():
                 weighted_losses[name] = loss.mean()
 
-        # Aggiorna le perdite precedenti
         self.prev_losses = [loss.mean().item() for loss in losses.values()]
 
-        # Somma ponderata delle perdite
         return weighted_losses
 
 
