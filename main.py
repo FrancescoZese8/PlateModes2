@@ -8,25 +8,34 @@ import pandas as pd
 import visualization
 import numpy as np
 
-#def main(n, l):
+#  [20]--> 1: 0.0007, 2: 0.0015, 3: 0.002, 4: 0.0047, 5: 0.015, 6: 0.0082, 7: 0.0133, 8: 0.0138, 9: 0.037
+#  [18]--> 1: 0.003, 2: 0.007, 3: 0.013, 4: 0.024, 5: 0.007 6: 0.02, 7: 0.04, 8: 0.045, 9: 0.014
+#  [16]--> 1: 0.003, 2: 0.005, 3: 0.012, 4: 0.012, 5: 0.010, 6: 0.028, 7: 0.032, 8: 0.037, 9: 0.272
+#  [14]--> 1: 0.004, 2: 0.009, 3: 0.01, 4: 0.03, 5: 0.023, 6: 0.046, 7: 0.085, 8: 0.21, 9: 0.424
+#  [12]--> 1: 0.007, 2: 0.011, 3: 0.019, 4: 0.058, 5: 0.057, 6: 0.228, 7: 0.142, 8: 0.342, 9: 0.88
+#  [10]--> 1: 0.007, 2: 0.016, 3: 0.067, 4: 0.182, 5: 0.100, 6: 0.365, 7: 0.504, 8: 0.470, 9: 1.29
+#  [8]--> 1: 0.069, 2: 0.044, 3: 0.174, 4: 0.662, 5: 0.424, 6: 0.78, 7: 1.21, 8: 0.75, 9: 1.45
+#  [6]--> 1: 0.22, 2: 0.63, 3: 0.25, 4: 0.78, 5: 1.21, 6: 1.56, 7: 1.0, 8:  1.1, 9: 1.3
+
+#def main(n):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 print('device: ', device)
 modules.set_seed(3)
 
-num_epochs = 150
+num_epochs = 450
 n_step = 50
 num_known_points = 10
 size_norm = 12
 batch_size = 1
 total_length = 1
-lr = 0.0001
+lr = 0.001
 batch_size_domain = 100
 num_hidden_layers = 2
-hidden_features = 8
+hidden_features = 16
 
-temperature = 0.01
-rho = 0.9999
-alpha = 0.999
+temperature = 10e-5
+rho = 0.999
+alpha = 0.99
 lambda_f = 1
 
 #  [6, 11]: 2, 32
@@ -38,7 +47,7 @@ opt_model = 'sine'  # mish
 mode = 'pinn'
 clip_grad = 1.0
 use_lbfgs = False
-relo = False
+relo = True
 third_loss = False
 adim = True
 dynamic_CP = False
@@ -52,7 +61,7 @@ freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.3
          165.3, ]  # ViolinPlateFOD3
 
 eigen_mode = [13]
-#eigen_mode = [6, 7, 8, 9, 10, 11, 12, 15]
+#eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 15]
 
 n_d = 6
 W, H, T, E, nue, den = 0.20, 0.35, 0.005, 10e6, 0.28, 420
@@ -164,11 +173,12 @@ for i in range(len(eigen_mode)):
     known_disp_concatenate.append(known_disp)
     full_known_disp = torch.tensor(full_known_disp)
     full_known_disp_concatenate.append(full_known_disp)
-    '''visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
-                                 image_width=n_samp_x,
-                                 image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, sample_step=sample_step,
-                                 dist_bound=dist_bound, n_d=n_d, size_norm=size_norm,
-                                 color=color)'''
+    if len(omegas) == 1:
+        visualization.visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode,
+                                     image_width=n_samp_x,
+                                     image_height=n_samp_y, H=H, W=W, H_p=H_p, W_p=W_p, sample_step=sample_step,
+                                     dist_bound=dist_bound, n_d=n_d, size_norm=size_norm,
+                                     color=color)
 known_disp_concatenate = torch.stack(known_disp_concatenate, dim=1)
 full_known_disp_concatenate = torch.stack(full_known_disp_concatenate, dim=1)
 omegas = torch.tensor(omegas).to(device)
@@ -234,8 +244,8 @@ visualization.visualise_loss(third_loss, metric_lam, history_loss, history_lambd
 torch.save(model.state_dict(), '/nas/home/fzese/plateModes/model_weights.pth')
 
 # Per ricaricare il modello in futuro
-# model = PINNet(omegas, num_known_points, num_hidden_layers, hidden_features, ...)
-# model.load_state_dict(torch.load('model_weights.pth'))
+#model = PINNet(omegas, num_known_points, num_hidden_layers, hidden_features, ...)
+#model.load_state_dict(torch.load('model_weights.pth'))
 
 # Visualizzare i pesi finali
 # state_dict = model.state_dict()

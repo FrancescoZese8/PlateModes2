@@ -76,24 +76,39 @@ class KirchhoffDataset(Dataset):
         self.counter = 0
         self.dynamic_CP = dynamic_CP
         self.lambda_f = lambda_f
-        # if dynamic_CP:
-        self.initialize_grid()
-        self.fft = False
+        if dynamic_CP:
+            self.initialize_grid()
 
     def initialize_grid(self):
 
         # Calcolo del numero di punti lungo ogni dimensione della griglia
-        grid_size = int(math.sqrt(1000))
-
+        grid_size = int(math.sqrt(self.batch_size_domain))
         x_grid = torch.linspace(0, self.W, grid_size)
         y_grid = torch.linspace(0, self.H, grid_size)
-
         # Creazione della griglia 2D
         x_grid, y_grid = torch.meshgrid(x_grid, y_grid)
-
         # Appiattimento della griglia 2D in un vettore 1D
-        self.x_grid = x_grid.flatten().to(self.device)
-        self.y_grid = y_grid.flatten().to(self.device)
+        x_grid = x_grid.flatten().to(self.device)
+        y_grid = y_grid.flatten().to(self.device)
+        self.x = torch.cat((self.x_t, x_grid), dim=0)
+        self.y = torch.cat((self.y_t, y_grid), dim=0)
+
+        x_grid_plot = x_grid.cpu().numpy()
+        y_grid_plot = y_grid.cpu().numpy()
+        x_t_plot = self.x_t.cpu().numpy()
+        y_t_plot = self.y_t.cpu().numpy()
+        plt.figure(figsize=(6, 10))
+        plt.scatter(x_grid_plot, y_grid_plot, c='blue', label='Collocation Points Init', alpha=0.5)
+        plt.scatter(x_t_plot, y_t_plot, c='black', label='Known Points', alpha=1, s=100)
+        plt.gca().set_aspect('equal', adjustable='box')
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.title('Collocation Points Init')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+        print('x_init: ', self.x.shape)
+        print('y_init: ', self.y.shape)
 
     def __getitem__(self, item):
         x, y = self.training_batch()
@@ -108,16 +123,11 @@ class KirchhoffDataset(Dataset):
     def training_batch(self):
 
         if not self.dynamic_CP:
-            if self.counter % 1000 == 0:
-                self.fft = True
-                x = self.x_grid
-                y = self.y_grid
-            else:
-                x_random = (torch.rand((self.batch_size_domain,)) * self.W).to(self.device)
-                y_random = (torch.rand((self.batch_size_domain,)) * self.H).to(self.device)
+            x_random = (torch.rand((self.batch_size_domain,)) * self.W).to(self.device)
+            y_random = (torch.rand((self.batch_size_domain,)) * self.H).to(self.device)
 
-                x = torch.cat((self.x_t, x_random), dim=0)
-                y = torch.cat((self.y_t, y_random), dim=0)
+            x = torch.cat((self.x_t, x_random), dim=0)
+            y = torch.cat((self.y_t, y_random), dim=0)
             x = x[..., None]
             y = y[..., None]
             self.counter = self.counter + 1
@@ -140,14 +150,14 @@ class KirchhoffDataset(Dataset):
                 lambda_x = (torch.rand(added_points, device=self.device) * 2 - 1)  # random between -1 and 1
                 lambda_y = (torch.rand(added_points, device=self.device) * 2 - 1)
 
-                #old_x_refined, old_y_refined = (self.x_refined, self.y_refined) if self.x_refined is not None else (None, None)
+                # old_x_refined, old_y_refined = (self.x_refined, self.y_refined) if self.x_refined is not None else (None, None)
                 x_refined = x_sampled + lambda_x * refining_step
                 y_refined = y_sampled + lambda_y * refining_step
                 self.x_refined = torch.clamp(x_refined, min=0, max=self.W)
                 self.y_refined = torch.clamp(y_refined, min=0, max=self.H)
-                #if old_x_refined is not None:
-                    #self.x_refined = torch.cat((self.x_refined, old_x_refined), dim=0)
-                    #self.y_refined = torch.cat((self.y_refined, old_y_refined), dim=0)
+                # if old_x_refined is not None:
+                # self.x_refined = torch.cat((self.x_refined, old_x_refined), dim=0)
+                # self.y_refined = torch.cat((self.y_refined, old_y_refined), dim=0)
 
                 if self.counter % 2500 == 0:
                     x_t_plot = self.x_t.detach().cpu().numpy()
@@ -200,10 +210,10 @@ class KirchhoffDataset(Dataset):
 
         if len(self.omegas) == 1:
             f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (self.omegas ** 2) * u)
-            #f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (0.3501277966457757 * (0.1258 ** 2) * u)
+            # f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (0.3501277966457757 * (0.1258 ** 2) * u)
         else:
             f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * torch.sum((self.omegas ** 2) * u, dim=-1))
-            #print('omegas: ', self.omegas)
+            # print('omegas: ', self.omegas)
 
         # print('AAA: ', self.den * self.T / self.D * self.omegas)
         # print('AAA: ', self.adim_k * self.omegas)
@@ -215,22 +225,6 @@ class KirchhoffDataset(Dataset):
 
         L_f = f ** 2 * self.lambda_f
         L_t = err_t ** 2
-
-        if self.fft:
-            self.fft = False
-            for i in range(u.shape[1]):
-                u_i = u[:, i].cpu().detach().numpy()
-                fourier_transform = np.fft.fft(u_i)
-                frequencies = np.fft.fftfreq(len(u_i)) * 2 * np.pi
-                amplitude = np.abs(fourier_transform)
-
-                plt.figure()
-                plt.plot(frequencies, amplitude)
-                plt.xlabel('Frequenza (rad/s)')
-                plt.ylabel('Ampiezza')
-                plt.title(f'Spettro di Frequenze del Modeshape {i + 1}')
-                plt.grid(True)
-                plt.show()
 
         if self.third_loss:
             dot_products = torch.matmul(u.T, u)
