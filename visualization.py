@@ -52,7 +52,7 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
 
 def visualise_prediction(x_p, y_p, omegas, full_known_disp, full_known_disp_concatenate, eigen_mode, max_norm, device, image_width, image_height, H, W, H_p,
                          W_p, model, sample_step, dist_bound, color):
-    NMSE = None
+    NMSE_concatenate = []
     mean_NMSE = 0
     omegas = torch.tensor(omegas, dtype=torch.float)
     x_p = torch.tensor(x_p, dtype=torch.float)
@@ -80,6 +80,7 @@ def visualise_prediction(x_p, y_p, omegas, full_known_disp, full_known_disp_conc
         u_plot = u_plot.cpu().detach().numpy().reshape(image_height, image_width)  # CUDA
 
         NMSE = round((np.linalg.norm(u_real - u_plot) ** 2) / (np.linalg.norm(u_real) ** 2), 5)
+        NMSE_concatenate.append(NMSE)
         mean_NMSE += NMSE
 
         #dudy = dudyyyy.cpu().detach().numpy().reshape(image_height, image_width)
@@ -87,6 +88,7 @@ def visualise_prediction(x_p, y_p, omegas, full_known_disp, full_known_disp_conc
 
         X, Y = np.meshgrid(np.arange(dist_bound, W + dist_bound, sample_step),
                            np.arange(dist_bound, H + dist_bound, sample_step))
+
 
         # Primo plot (plot 3D)
         fig = plt.figure(figsize=(8, 6))
@@ -139,7 +141,7 @@ def visualise_prediction(x_p, y_p, omegas, full_known_disp, full_known_disp_conc
         plt.colorbar(label='Increment')
         plt.show()'''
 
-    return mean_NMSE/len(omegas)
+    return mean_NMSE/len(omegas), NMSE_concatenate
 
 
 def visualise_loss(third_loss, metric_lam, history_loss, history_lambda):

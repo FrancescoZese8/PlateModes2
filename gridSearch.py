@@ -1,9 +1,9 @@
 import main
-
+import config
 
 def gridSearch_Relobralo():
-    tmps = [1, 10e-02, 10e-02]  # , 10e-05
-    rhos = [0.1, 0.5, 0.99]
+    tmps = [1, 10e-02, 10e-05]  # , 10e-05
+    rhos = [0.1, 0.99]
     alphas = [0.1, 0.99]
     best_NMSE = 10e5
     best_tmp = 0
@@ -63,7 +63,7 @@ def gridSearch_epochs():
 
 def gridSearch_neurons():
     results = []
-    neurons = [32, 50, 100, 200]
+    neurons = [100, 128, 150, 180]
     layers = [2]
 
     for n in neurons:
@@ -76,6 +76,7 @@ def gridSearch_neurons():
     print("Classifica NMSE:")
     for i, (NMSE, neuron, layer) in enumerate(results):
         print(f"{i + 1}. NMSE: {NMSE}, Neurons: {neuron}, Layers: {layer}")
+
 
 def gridSearch_seed():
     results = []
@@ -90,19 +91,23 @@ def gridSearch_seed():
         mean_NMSE = mean_NMSE / len(modes)
         results.append((mean_NMSE, s))
     print("Classifica NMSE:")
+    results.sort(key=lambda x: x[0])
     for i, (NMSE, seed) in enumerate(results):
         print(f"{i + 1}. NMSE: {NMSE}, Seed: {seed}")
 
-def gridSearch_nkp():
 
+def gridSearch_nkp():
     results = []
-    nkp = [18, 14, 10]
+    nkp = [6, 8, 10, 12, 14]
     for n in nkp:
-        NMSE = main.main(n)
-        results.append((NMSE, n))
+        config.num_known_points = n
+        NMSE, NMSE_concatenate = main.main(n)
+        results.append((NMSE, NMSE_concatenate, n))
 
     print("Classifica NMSE:")
-    for i, (NMSE, nkp) in enumerate(results):
-        print(f"{i + 1}. NMSE: {NMSE}, Nkp: {nkp}")
+    results.sort(key=lambda x: x[0])
+    for i, (NMSE, nkp, NMSE_concatenate) in enumerate(results):
+        print(f"{i + 1}. mean_NMSE: {NMSE}, NMSE_concatenate: {NMSE_concatenate}, Nkp: {nkp}")
+
 
 gridSearch_nkp()
