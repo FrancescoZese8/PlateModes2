@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 import math
 
 EPS = 1e-6
-
+global index
 
 
 def gradient(y, x, grad_outputs=None):
@@ -124,6 +124,8 @@ class KirchhoffDataset(Dataset):
     def training_batch(self):
 
         if not self.dynamic_CP:
+            #x_random_l = (torch.rand((self.batch_size_domain // 2,)) * self.W / 2).to(self.device)
+            #x_random_r = (x_random_l + self.W / 2).to(self.device)
             x_random = (torch.rand((self.batch_size_domain,)) * self.W).to(self.device)
             y_random = (torch.rand((self.batch_size_domain,)) * self.H).to(self.device)
 
@@ -133,7 +135,7 @@ class KirchhoffDataset(Dataset):
             y = y[..., None]
             self.counter = self.counter + 1
         else:
-            added_points = self.batch_size_domain
+            added_points = self.batch_size_domain // 100
             refining_step = 0.5
             if self.residuals is not None and (self.counter % 5 == 0):  # TODO
                 self.x = self.x[len(self.x_t):]
@@ -208,8 +210,8 @@ class KirchhoffDataset(Dataset):
         return x, y
 
     def compute_loss(self, x, y, preds, eval=False):
-        # governing equation loss
-        no = len(self.omegas)
+        omegas = self.omegas[:index]
+        no = len(omegas)
         u_t = np.squeeze(preds[:len(self.x_t), 0:no])
         # print('preds ', preds.shape)
         u = np.squeeze(preds[:, 0:no])
@@ -220,18 +222,20 @@ class KirchhoffDataset(Dataset):
         dudyyyy = np.squeeze(preds[:, no + 3:no + 4])
         dudxxyy = np.squeeze(preds[:, no + 4:no + 5])
 
-        if len(self.omegas) == 1:
+        if len(omegas) == 1:
+            omegas = omegas.unsqueeze(0)
             u_t = u_t.unsqueeze(-1)
-        # print('u_t: ', u_t.shape)
-        # print('kdc: ', self.known_disp_concatenate.shape)
-        err_t = self.known_disp_concatenate - u_t
+        #print('u_t: ', u_t.shape)
+        known_disp_concatenate = self.known_disp_concatenate[:, :index]
+        #print('kdc: ', known_disp_concatenate.shape)
+        err_t = known_disp_concatenate - u_t
         # print('dudxxxx: ', dudxxxx.shape, 'omegas: ', self.omegas.shape, 'u: ', u.shape, 'err_t: ', err_t.shape)
 
-        if len(self.omegas) == 1:
-            f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (self.omegas ** 2) * u)
-            # f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (0.3501277966457757 * (0.1258 ** 2) * u)
+        if len(omegas) == 1:
+            f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (omegas ** 2) * u)
         else:
-            f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * torch.sum((self.omegas ** 2) * u, dim=-1))
+            #f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (self.omegas ** 2) * u)
+            f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * torch.sum((omegas ** 2) * u, dim=-1))
             # print('omegas: ', self.omegas)
 
         # print('AAA: ', self.den * self.T / self.D * self.omegas)
@@ -258,7 +262,7 @@ class KirchhoffDataset(Dataset):
             off_diagonal_MAC = MAC_matrix - torch.diag(torch.diag(MAC_matrix))
             loss_ortogonality = torch.sum(torch.abs(off_diagonal_MAC))
             L_o = loss_ortogonality ** 2'''
-            L_o = torch.mean(dudxx ** 2 + dudyy ** 2) ** 2
+            #L_o = (abs(u_s[:self.batch_size_domain // 2]) - abs(u_s[self.batch_size_domain // 2:])) ** 2 * 0.001
 
             return {'L_f': L_f, 'L_t': L_t, 'L_o': L_o}
         else:

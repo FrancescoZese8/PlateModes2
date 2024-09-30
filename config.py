@@ -6,18 +6,18 @@ import dataSet
 import visualization
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
-modules.set_seed(3)  # 3 per 13, 4 per 15 # NMSE 0.3232
+modules.set_seed(4)  # 3 per 13, 4 per 15 # NMSE 0.3232
 print('device: ', device)
-num_epochs = 200
+num_epochs = 250
 n_step = 50
 num_known_points = 10
 size_norm = 12
 batch_size = 1
 total_length = 1
 lr = 0.001
-batch_size_domain = 1000
+batch_size_domain = 50
 num_hidden_layers = 2
-hidden_features = 256
+hidden_features = 128
 
 temperature = 10e-6
 rho = 0.999
@@ -33,7 +33,7 @@ opt_model = 'sine'  # mish
 mode = 'pinn'
 clip_grad = 1.0
 use_lbfgs = False
-relo = True
+relo = False
 third_loss = False
 adim = True
 dynamic_CP = False
@@ -46,7 +46,7 @@ freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.3
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
          165.3, ]  # ViolinPlateFOD3
 
-# eigen_mode = [15]
+#eigen_mode = [14]
 eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
 n_d = 6
@@ -90,10 +90,10 @@ for i in range(n_samp_y):
 x_t = []
 y_t = []
 
-'''for y in range(4):
+'''for y in range(3):
     for x in range(3):
         x_t.append(round(x * 8*sample_step + 3*dist_bound, n_d))
-        y_t.append(round(y * 11*sample_step + dist_bound, n_d))'''
+        y_t.append(round(y * 14*sample_step + 5*dist_bound, n_d))'''
 
 min_distance = round(np.sqrt(H * W / num_known_points) - np.sqrt(H * W / num_known_points) / 20, n_d)
 

@@ -23,7 +23,6 @@ def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_
     ax3d_1.set_ylabel('Y')
     ax3d_1.set_title('Real Displacement mode: {}'.format(eigen_mode))
 
-    ax3d_1.text2D(0.05, 0.95, 'Size_norm: {}'.format(size_norm), transform=ax3d_1.transAxes)
 
     # Secondo subplot
     ax2d_1 = fig.add_subplot(222)

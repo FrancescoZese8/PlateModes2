@@ -23,6 +23,7 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
 
     total_steps = 0
     best_loss = float('inf')
+    old_loss = None
     with tqdm(total=len(train_dataloader) * epochs) as pbar:
         train_losses = []
         for epoch in range(epochs):
@@ -48,12 +49,13 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
 
                         optim.step(closure)
 
-                    model_output = model(model_input)
+                    model_output = model(model_input, training=True, current_loss=old_loss)
                     losses = loss_fn.call(model_output, model_input)  # , epoch per DWA
 
                     train_loss = torch.tensor(0.0, requires_grad=True)
                     for loss_name, loss in losses.items():
                         train_loss = train_loss + loss.mean()
+                    old_loss = train_loss
 
                     train_losses.append(train_loss.item())
 
