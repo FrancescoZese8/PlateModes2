@@ -78,22 +78,24 @@ def gridSearch_neurons():
         print(f"{i + 1}. NMSE: {NMSE}, Neurons: {neuron}, Layers: {layer}")
 
 
-def gridSearch_seed():
+def gridSearch_lambda():
     results = []
-    seeds = [1, 2, 4, 5, 6]
-    modes = [11, 13, 14, 15, 16]
-    mean_NMSE = 0
-    for s in seeds:
-        for m in modes:
-            NMSE = main.main(s, m)
-            mean_NMSE += NMSE
+    lam_f = [1, 0.1, 0.01]
+    lam_t = [1, 0.1, 0.01]
+    lam_o = [0, 1, 0.1, 0.01]
 
-        mean_NMSE = mean_NMSE / len(modes)
-        results.append((mean_NMSE, s))
+    for f in lam_f:
+        for t in lam_t:
+            for o in lam_o:
+                if f == t == o:
+                    continue
+                NMSE = main.main(f, t, o)
+                results.append((NMSE, f, t, o))
+
     print("Classifica NMSE:")
     results.sort(key=lambda x: x[0])
-    for i, (NMSE, seed) in enumerate(results):
-        print(f"{i + 1}. NMSE: {NMSE}, Seed: {seed}")
+    for i, (NMSE, f, t, o) in enumerate(results):
+        print(f"{i + 1}. NMSE: {NMSE}, Lam_f: {f}, Lam_t: {t}, Lam_o: {o}")
 
 
 def gridSearch_nkp():

@@ -11,6 +11,35 @@ class CustomVariable:
         self.data.data = torch.tensor(new_value, dtype=self.data.dtype)
 
 
+class IncrementalLoss(torch.nn.Module):
+    def __init__(self, plate, total_epochs, initial_weight=1.0, max_weight=1000.0):
+        super(IncrementalLoss, self).__init__()
+        self.plate = plate
+        self.initial_weight = initial_weight  # Peso iniziale di L_f e L_t
+        self.max_weight = max_weight  # Peso massimo di L_f
+        self.total_epochs = total_epochs
+
+    def call(self, preds, xy, epoch):
+        # Estrai le coordinate e le previsioni
+        xy = xy['coords']
+        x, y = xy[:, :, 0], xy[:, :, 1]
+        preds = preds['model_out']
+
+        # Calcola le perdite individuali
+        losses = self.plate.compute_loss(x, y, preds)
+
+        # Incrementa il peso di L_f gradualmente in base all'epoca corrente
+        current_weight_f = self.initial_weight + (self.max_weight - self.initial_weight) * (epoch / self.total_epochs)
+        current_weight_f = min(current_weight_f, self.max_weight)  # Limita il peso massimo di L_f
+
+        weighted_L_f = current_weight_f * losses['L_f'].mean()
+        weighted_L_t = self.initial_weight * losses['L_t'].mean()  # Mantieni il peso costante per L_t
+
+        total_loss = weighted_L_f + weighted_L_t
+
+        return total_loss
+
+
 class DWALoss(torch.nn.Module):
     def __init__(self, plate, num_tasks):
         super(DWALoss, self).__init__()

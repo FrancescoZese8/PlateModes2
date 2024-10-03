@@ -8,21 +8,24 @@ import visualization
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 modules.set_seed(3)  # 3 per 13, 4 per 15 # NMSE 0.3232
 print('device: ', device)
-num_epochs = 200
+num_epochs = 500  # 150
 n_step = 50
 num_known_points = 10
 size_norm = 12
 batch_size = 1
 total_length = 1
 lr = 0.001
-batch_size_domain = 1000
+batch_size_domain = 500
 num_hidden_layers = 2
-hidden_features = 256
+hidden_features = 150
 
 temperature = 10e-6
 rho = 0.999
 alpha = 0.99
-lambda_f = 1
+
+lambda_f = 100  # 10000
+lambda_t = 1
+lambda_o = 0.001
 
 #  [6, 11]: 2, 32
 #  [6-12]: 2, 70
@@ -33,7 +36,7 @@ opt_model = 'sine'  # mish
 mode = 'pinn'
 clip_grad = 1.0
 use_lbfgs = False
-relo = True
+relo = False
 third_loss = False
 adim = True
 dynamic_CP = False
@@ -46,7 +49,7 @@ freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.3
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
          165.3, ]  # ViolinPlateFOD3
 
-# eigen_mode = [15]
+#eigen_mode = [15]
 eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
 n_d = 6

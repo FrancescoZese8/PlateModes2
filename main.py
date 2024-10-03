@@ -33,7 +33,8 @@ plate = config.dataSet.KirchhoffDataset(T=config.T, nue=config.nue, E=config.E, 
                                         sample_step=config.sample_step,
                                         dist_bound=config.dist_bound,
                                         n_samp_x=config.n_samp_x, n_samp_y=config.n_samp_y,
-                                        dynamic_CP=config.dynamic_CP, lambda_f=config.lambda_f)
+                                        dynamic_CP=config.dynamic_CP, lambda_f=config.lambda_f,
+                                        lambda_t=config.lambda_t, lambda_o=config.lambda_o)
 
 data_loader = DataLoader(plate, shuffle=True, batch_size=config.batch_size, pin_memory=False, num_workers=0)
 model = config.modules.PINNet(omegas=config.omegas, num_known_points=config.num_known_points,
@@ -44,8 +45,9 @@ model = model.to(config.device)  # CUDA
 
 history_loss = {'L_f': [], 'L_t': [], 'L_o': []}
 if not config.relo:
-    # loss_fn = loss.MultiTaskLossWrapper(plate, num_tasks=num_loss)
-    loss_fn = loss.KirchhoffLoss(plate)
+    # loss _fn = loss.MultiTaskLossWrapper(plate, num_tasks=num_loss)
+    #loss_fn = loss.KirchhoffLoss(plate)
+    loss_fn = loss.IncrementalLoss(plate, config.num_epochs)
     # loss_fn = loss.DWALoss(plate, num_tasks=num_loss)
     kirchhoff_metric = loss.KirchhoffMetric(plate, third_loss=config.third_loss)
     history_lambda = None

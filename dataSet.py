@@ -45,7 +45,7 @@ class KirchhoffDataset(Dataset):
 
     def __init__(self, T, nue, E, D, H, W, total_length, den, omegas, batch_size_domain, known_disp_concatenate,
                  x_t, y_t, adim_k, max_norm, third_loss, device, sample_step, dist_bound, n_samp_x,
-                 n_samp_y, dynamic_CP, lambda_f):
+                 n_samp_y, dynamic_CP, lambda_f, lambda_t, lambda_o):
         self.T = T
         self.nue = nue
         self.E = E
@@ -77,6 +77,8 @@ class KirchhoffDataset(Dataset):
         self.counter = 0
         self.dynamic_CP = dynamic_CP
         self.lambda_f = lambda_f
+        self.lambda_t = lambda_t
+        self.lambda_o = lambda_o
         if dynamic_CP:
             self.initialize_grid()
 
@@ -246,7 +248,7 @@ class KirchhoffDataset(Dataset):
         L_t = err_t ** 2
 
         if self.third_loss:
-            '''dot_products = torch.matmul(u.T, u)
+            dot_products = torch.matmul(u.T, u)
             MAC_matrix = torch.zeros_like(dot_products)
 
             for i in range(u.shape[1]):
@@ -257,8 +259,7 @@ class KirchhoffDataset(Dataset):
 
             off_diagonal_MAC = MAC_matrix - torch.diag(torch.diag(MAC_matrix))
             loss_ortogonality = torch.sum(torch.abs(off_diagonal_MAC))
-            L_o = loss_ortogonality ** 2'''
-            L_o = torch.mean(dudxx ** 2 + dudyy ** 2) ** 2
+            L_o = loss_ortogonality ** 2
 
             return {'L_f': L_f, 'L_t': L_t, 'L_o': L_o}
         else:

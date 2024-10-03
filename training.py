@@ -6,7 +6,7 @@ import time
 def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_fn,
           history_loss, history_lambda, metric, metric_lam, max_epochs_without_improvement, third_loss, clip_grad=False,
           use_lbfgs=False, relo=True):
-    optim = torch.optim.Adam(lr=lr, params=list(model.parameters()) + list(loss_fn.parameters()))   ###
+    optim = torch.optim.Adam(lr=lr, params=list(model.parameters()) + list(loss_fn.parameters()), weight_decay=0)   ###
 
     if use_lbfgs:
         optim = torch.optim.LBFGS(lr=lr, params=model.parameters(), max_iter=50000, max_eval=50000,
@@ -49,7 +49,7 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
                         optim.step(closure)
 
                     model_output = model(model_input)
-                    losses = loss_fn.call(model_output, model_input)  # , epoch per DWA
+                    losses = loss_fn.call(model_output, model_input, epoch)  # , epoch per DWA e incremental
 
                     train_loss = torch.tensor(0.0, requires_grad=True)
                     for loss_name, loss in losses.items():
