@@ -7,7 +7,6 @@ import math
 EPS = 1e-6
 
 
-
 def gradient(y, x, grad_outputs=None):
     if grad_outputs is None:
         grad_outputs = torch.ones_like(y)
@@ -126,6 +125,7 @@ class KirchhoffDataset(Dataset):
     def training_batch(self):
 
         if not self.dynamic_CP:
+
             x_random = (torch.rand((self.batch_size_domain,)) * self.W).to(self.device)
             y_random = (torch.rand((self.batch_size_domain,)) * self.H).to(self.device)
 
@@ -133,6 +133,7 @@ class KirchhoffDataset(Dataset):
             y = torch.cat((self.y_t, y_random), dim=0)
             x = x[..., None]
             y = y[..., None]
+
             self.counter = self.counter + 1
         else:
             added_points = self.batch_size_domain
@@ -214,13 +215,13 @@ class KirchhoffDataset(Dataset):
         no = len(self.omegas)
         u_t = np.squeeze(preds[:len(self.x_t), 0:no])
         # print('preds ', preds.shape)
-        u = np.squeeze(preds[:, 0:no])
+        u = np.squeeze(preds[len(self.x_t):, 0:no])
         # print('u ', u.shape)
-        dudxx = np.squeeze(preds[:, no:no + 1])
-        dudyy = np.squeeze(preds[:, no + 1:no + 2])
-        dudxxxx = np.squeeze(preds[:, no + 2:no + 3])
-        dudyyyy = np.squeeze(preds[:, no + 3:no + 4])
-        dudxxyy = np.squeeze(preds[:, no + 4:no + 5])
+        dudxx = np.squeeze(preds[len(self.x_t):, no:no + 1])
+        dudyy = np.squeeze(preds[len(self.x_t):, no + 1:no + 2])
+        dudxxxx = np.squeeze(preds[len(self.x_t):, no + 2:no + 3])
+        dudyyyy = np.squeeze(preds[len(self.x_t):, no + 3:no + 4])
+        dudxxyy = np.squeeze(preds[len(self.x_t):, no + 4:no + 5])
 
         if len(self.omegas) == 1:
             u_t = u_t.unsqueeze(-1)
@@ -245,21 +246,24 @@ class KirchhoffDataset(Dataset):
         self.residuals = f
 
         L_f = f ** 2 * self.lambda_f
-        L_t = err_t ** 2
+        L_t = err_t ** 2 * self.lambda_t
 
         if self.third_loss:
-            dot_products = torch.matmul(u.T, u)
-            MAC_matrix = torch.zeros_like(dot_products)
+            if self.counter > 2500:
+                dot_products = torch.matmul(u.T, u)
+                MAC_matrix = torch.zeros_like(dot_products)
 
-            for i in range(u.shape[1]):
-                for j in range(u.shape[1]):
-                    numerator = (torch.matmul(u[:, i].T, u[:, j])) ** 2
-                    denominator = torch.matmul(u[:, i].T, u[:, i]) * torch.matmul(u[:, j].T, u[:, j])
-                    MAC_matrix[i, j] = numerator / denominator
+                for i in range(u.shape[1]):
+                    for j in range(u.shape[1]):
+                        numerator = (torch.matmul(u[:, i].T, u[:, j])) ** 2
+                        denominator = torch.matmul(u[:, i].T, u[:, i]) * torch.matmul(u[:, j].T, u[:, j])
+                        MAC_matrix[i, j] = numerator / denominator
 
-            off_diagonal_MAC = MAC_matrix - torch.diag(torch.diag(MAC_matrix))
-            loss_ortogonality = torch.sum(torch.abs(off_diagonal_MAC))
-            L_o = loss_ortogonality ** 2
+                off_diagonal_MAC = MAC_matrix - torch.diag(torch.diag(MAC_matrix))
+                loss_ortogonality = torch.sum(torch.abs(off_diagonal_MAC))
+                L_o = loss_ortogonality ** 2 * self.lambda_o
+            else:
+                L_o = L_t * 0
 
             return {'L_f': L_f, 'L_t': L_t, 'L_o': L_o}
         else:

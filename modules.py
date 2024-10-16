@@ -45,11 +45,37 @@ class Rowdy(nn.Module):
         super().__init__()
         self.alpha_1 = nn.Parameter(torch.tensor(0.1))
         self.alpha_2 = nn.Parameter(torch.tensor(0.1))
+        self.alpha_3 = nn.Parameter(torch.tensor(0.1))
+        self.alpha_4 = nn.Parameter(torch.tensor(0.1))
+        self.alpha_5 = nn.Parameter(torch.tensor(0.1))
+        self.cc = 0
 
     def forward(self, input):
-        return (torch.sin(omega_zero * input) +
-                self.alpha_1 * torch.sin(2 * omega_zero * input) +
-                self.alpha_2 * torch.sin(3 * omega_zero * input))
+        self.cc += 1
+        output = (torch.sin(omega_zero * input) +
+                  self.alpha_1 * torch.sin(2 * omega_zero * input) +
+                  self.alpha_2 * torch.sin(3 * omega_zero * input) +
+                  self.alpha_3 * torch.sin(4 * omega_zero * input) +
+                  self.alpha_4 * torch.sin(5 * omega_zero * input) +
+                  self.alpha_5 * torch.sin(6 * omega_zero * input))
+
+        if self.cc % 1000 == 0:
+            print(f"Iteration {self.cc}: alpha_1 = {self.alpha_1.item()}, "
+                  f"alpha_2 = {self.alpha_2.item()}, "
+                  f"alpha_3 = {self.alpha_3.item()}, "
+                  f"alpha_4 = {self.alpha_4.item()}, "
+                  f"alpha_5 = {self.alpha_5.item()}")
+            '''input_np = input.cpu().detach().numpy()
+            output_np = output.cpu().detach().numpy()
+
+            plt.figure()
+            plt.plot(input_np, output_np)
+            plt.title('Activation Function Plot')
+            plt.xlabel('Input')
+            plt.ylabel('Output')
+            plt.grid(True)
+            plt.show()'''
+        return output
 
 
 class FCBlock(MetaModule):
@@ -65,7 +91,7 @@ class FCBlock(MetaModule):
 
         # Dictionary that maps nonlinearity name to the respective function, initialization, and, if applicable,
         # special first-layer initialization scheme
-        nls_and_inits = {'sine': (Sine(), sine_init, first_layer_sine_init),
+        nls_and_inits = {'sine': (Rowdy(), first_layer_sine_init, sine_init),
                          'relu': (nn.ReLU(inplace=True), init_weights_normal, None),
                          'silu': (nn.SiLU(), init_weights_xavier, None),  # first_layer_silu_init
                          'sigmoid': (nn.Sigmoid(), init_weights_xavier, None),
@@ -83,6 +109,9 @@ class FCBlock(MetaModule):
             self.weight_init = nl_weight_init
 
         self.net = []
+        '''self.net.append(MetaSequential(
+            FourierLayer(in_features, hidden_features, mapping_size=16, scale=0.5), nl
+        ))'''
         self.net.append(MetaSequential(
             BatchLinear(in_features, hidden_features, bias=True), nl
         ))
@@ -249,11 +278,21 @@ def init_weights_xavier(m):
             nn.init.zeros_(m.bias)
 
 
-def sine_init(m):
+# Plotting helper function
+def plot_weights(weights, title):
+    plt.hist(weights.cpu().numpy().flatten(), bins=30, alpha=0.75, color='b', edgecolor='black')
+    plt.title(f'Weight Distribution: {title}')
+    plt.xlabel('Weight values')
+    plt.ylabel('Frequency')
+    plt.grid(True)
+    plt.show()
+
+
+def sine_init(m, omega_zero=5):
     with torch.no_grad():
         if hasattr(m, 'weight'):
             num_input = m.weight.size(-1)
-            # See supplement Sec. 1.5 for discussion of factor 30
+            # Initialize weights based on the sine method
             m.weight.uniform_(-np.sqrt(6 / num_input) / omega_zero, np.sqrt(6 / num_input) / omega_zero)
 
 
@@ -261,7 +300,7 @@ def first_layer_sine_init(m):
     with torch.no_grad():
         if hasattr(m, 'weight'):
             num_input = m.weight.size(-1)
-            # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of factor 30
+            # Initialize weights for the first layer
             m.weight.uniform_(-1 / num_input, 1 / num_input)
 
 
@@ -277,3 +316,72 @@ def set_seed(seed):
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
+
+
+def he_init(m):
+    if isinstance(m, nn.Linear):
+        torch.nn.init.kaiming_uniform_(m.weight, a=np.sqrt(5))  # Kaiming He uniform initialization
+        if m.bias is not None:
+            fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(m.weight)
+            bound = 1 / np.sqrt(fan_in)
+            torch.nn.init.uniform_(m.bias, -bound, bound)
+
+
+def unique_uniform_init(m, min_value=-0.0001, max_value=0.0001):
+    with torch.no_grad():
+        if hasattr(m, 'weight'):
+            # Creare valori uniformi unici per il numero di pesi
+            num_weights = m.weight.numel()  # Numero totale di pesi
+            values = torch.linspace(min_value, max_value, num_weights)
+            m.weight.copy_(values.view_as(m.weight))  # Copia i valori nei pesi
+
+            # Opzionalmente, inizializza i bias a zero o un altro valore
+            if hasattr(m, 'bias') and m.bias is not None:
+                m.bias.fill_(0)
+
+
+class FourierLayer(nn.Module):
+    def __init__(self, in_features, out_features, mapping_size, scale):
+        super().__init__()
+        self.B = nn.Parameter(torch.randn(in_features, mapping_size) * scale, requires_grad=False)
+        self.linear = nn.Linear(2 * mapping_size, out_features)
+
+    def forward(self, x):
+        # Fourier feature mapping
+        # print('x: ', x.shape)
+        # print('B: ', self.B.shape)
+        x_proj = 2 * np.pi * torch.matmul(x, self.B)
+        # print('x_proj: ', x_proj)
+        x_fourier = torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
+        # print('x_fourier: ', x_fourier.shape)
+        return self.linear(x_fourier)
+
+
+class SinusoidalLayer(nn.Module):
+    def __init__(self, in_features, out_features, mapping_size, scale, sigma):
+        super(SinusoidalLayer, self).__init__()
+
+        # Trainable weight matrix W1
+        self.W1 = nn.Parameter(torch.randn(in_features, mapping_size) * sigma)  # initialize from N(0, sigma^2)
+
+        # Trainable bias vector b1
+        self.b1 = nn.Parameter(torch.zeros(mapping_size))  # initialize bias to zero
+
+        # Linear layer to be applied after sinusoidal mapping
+        self.linear = nn.Linear(2 * mapping_size, out_features)
+
+        self.scale = scale
+
+    def forward(self, x):
+        # Sinusoidal feature mapping: sin(2π(W1 * x + b1))
+        x_proj = 2 * torch.pi * (torch.matmul(x, self.W1) + self.b1)
+
+        # Apply sin and cos for the projection
+        x_sin = torch.sin(x_proj)
+        x_cos = torch.cos(x_proj)
+
+        # Concatenate sin and cos results
+        x_fourier = torch.cat([x_sin, x_cos], dim=-1)
+
+        # Apply the linear layer on the mapped inputs
+        return self.linear(x_fourier)

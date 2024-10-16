@@ -49,7 +49,7 @@ def train(model, train_dataloader, epochs, n_step, lr, steps_til_summary, loss_f
                         optim.step(closure)
 
                     model_output = model(model_input)
-                    losses = loss_fn.call(model_output, model_input, epoch)  # , epoch per DWA e incremental
+                    losses = loss_fn.call(model_output, model_input)  # , epoch per DWA e incremental
 
                     train_loss = torch.tensor(0.0, requires_grad=True)
                     for loss_name, loss in losses.items():
