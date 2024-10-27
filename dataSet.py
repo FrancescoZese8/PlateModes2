@@ -126,11 +126,31 @@ class KirchhoffDataset(Dataset):
 
         if not self.dynamic_CP:
 
-            x_random = (torch.rand((self.batch_size_domain,)) * self.W).to(self.device)
+            x_random_left = (torch.rand((self.batch_size_domain//2,)) * self.W/2).to(self.device)
+            x_random_right = self.W - x_random_left
+            y_random = (torch.rand((self.batch_size_domain//2,)) * self.H).to(self.device)
+
+            x = torch.cat((self.x_t, x_random_left, x_random_right), dim=0)
+            y = torch.cat((self.y_t, y_random, y_random), dim=0)
+
+            '''x_random = (torch.rand((self.batch_size_domain,)) * self.W).to(self.device)
             y_random = (torch.rand((self.batch_size_domain,)) * self.H).to(self.device)
 
             x = torch.cat((self.x_t, x_random), dim=0)
-            y = torch.cat((self.y_t, y_random), dim=0)
+            y = torch.cat((self.y_t, y_random), dim=0)'''
+
+            '''x_grid_plot = x[len(self.x_t):].cpu().numpy()
+            y_grid_plot = y[len(self.x_t):].cpu().numpy()
+            plt.figure(figsize=(6, 10))
+            plt.scatter(x_grid_plot, y_grid_plot, c='blue', label='Collocation Points Init', alpha=0.5)
+            plt.gca().set_aspect('equal', adjustable='box')
+            plt.xlabel('x')
+            plt.ylabel('y')
+            plt.title('Collocation Points Init')
+            plt.legend()
+            plt.grid(True)
+            plt.show()'''
+
             x = x[..., None]
             y = y[..., None]
 
@@ -217,11 +237,11 @@ class KirchhoffDataset(Dataset):
         # print('preds ', preds.shape)
         u = np.squeeze(preds[len(self.x_t):, 0:no])
         # print('u ', u.shape)
-        dudxx = np.squeeze(preds[len(self.x_t):, no:no + 1])
-        dudyy = np.squeeze(preds[len(self.x_t):, no + 1:no + 2])
-        dudxxxx = np.squeeze(preds[len(self.x_t):, no + 2:no + 3])
-        dudyyyy = np.squeeze(preds[len(self.x_t):, no + 3:no + 4])
-        dudxxyy = np.squeeze(preds[len(self.x_t):, no + 4:no + 5])
+        dudxx = np.squeeze(preds[len(self.x_t):, no:2*no])
+        dudyy = np.squeeze(preds[len(self.x_t):, 2*no:3*no])
+        dudxxxx = np.squeeze(preds[len(self.x_t):, 3*no:4*no])
+        dudyyyy = np.squeeze(preds[len(self.x_t):, 4*no:5*no])
+        dudxxyy = np.squeeze(preds[len(self.x_t):, 5*no:6*no])
 
         if len(self.omegas) == 1:
             u_t = u_t.unsqueeze(-1)
@@ -232,9 +252,9 @@ class KirchhoffDataset(Dataset):
 
         if len(self.omegas) == 1:
             f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (self.omegas ** 2) * u)
-            # f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (0.3501277966457757 * (0.1258 ** 2) * u)
         else:
-            f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * torch.sum((self.omegas ** 2) * u, dim=-1))
+            f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (self.omegas ** 2) * u)
+            #f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * torch.sum((self.omegas ** 2) * u, dim=-1))
             # print('omegas: ', self.omegas)
 
         # print('AAA: ', self.den * self.T / self.D * self.omegas)
@@ -249,21 +269,21 @@ class KirchhoffDataset(Dataset):
         L_t = err_t ** 2 * self.lambda_t
 
         if self.third_loss:
-            if self.counter > 2500:
-                dot_products = torch.matmul(u.T, u)
-                MAC_matrix = torch.zeros_like(dot_products)
+            '''dot_products = torch.matmul(u.T, u)
+            MAC_matrix = torch.zeros_like(dot_products)
 
-                for i in range(u.shape[1]):
-                    for j in range(u.shape[1]):
-                        numerator = (torch.matmul(u[:, i].T, u[:, j])) ** 2
-                        denominator = torch.matmul(u[:, i].T, u[:, i]) * torch.matmul(u[:, j].T, u[:, j])
-                        MAC_matrix[i, j] = numerator / denominator
+            for i in range(u.shape[1]):
+                for j in range(u.shape[1]):
+                    numerator = (torch.matmul(u[:, i].T, u[:, j])) ** 2
+                    denominator = torch.matmul(u[:, i].T, u[:, i]) * torch.matmul(u[:, j].T, u[:, j])
+                    MAC_matrix[i, j] = numerator / denominator
 
-                off_diagonal_MAC = MAC_matrix - torch.diag(torch.diag(MAC_matrix))
-                loss_ortogonality = torch.sum(torch.abs(off_diagonal_MAC))
-                L_o = loss_ortogonality ** 2 * self.lambda_o
-            else:
-                L_o = L_t * 0
+            off_diagonal_MAC = MAC_matrix - torch.diag(torch.diag(MAC_matrix))
+            loss_ortogonality = torch.sum(torch.abs(off_diagonal_MAC))
+            L_o = loss_ortogonality ** 2 * self.lambda_o'''
+            L_o = (abs(dudxx[:self.batch_size_domain//2,]) - abs(dudxx[self.batch_size_domain//2:,]))**2
+                   #+ abs(dudxxxx[:self.batch_size_domain//2,]) - abs(dudxxxx[self.batch_size_domain//2:,])) ** 2
+            #L_o = (abs(u[:self.batch_size_domain // 2, :]) - abs(u[self.batch_size_domain // 2:, :])) ** 2
 
             return {'L_f': L_f, 'L_t': L_t, 'L_o': L_o}
         else:

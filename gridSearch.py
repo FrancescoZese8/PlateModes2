@@ -63,7 +63,7 @@ def gridSearch_epochs():
 
 def gridSearch_neurons():
     results = []
-    neurons = [100, 128, 150, 180]
+    neurons = [80, 220]
     layers = [2]
 
     for n in neurons:
@@ -80,18 +80,20 @@ def gridSearch_neurons():
 
 def gridSearch_lambda():
     results = []
-    lam_f = [50, 500, 1000, 2000]
-    lam_t = [1, 0.1, 0.01]
-    lam_o = [0, 1, 0.1, 0.01]
+    lam_f = [1]
+    lam_t = [1]
+    lam_o = [0.1, 1, 10]
 
     for f in lam_f:
-        NMSE = main.main(f)
-        results.append((NMSE, f))
+        for t in lam_t:
+            for o in lam_o:
+                NMSE, NMSE_concatenate = main.main(f, t, o)
+                results.append((NMSE, f, t, o))
 
     print("Classifica NMSE:")
     results.sort(key=lambda x: x[0])
-    for i, (NMSE, f) in enumerate(results):
-        print(f"{i + 1}. NMSE: {NMSE}, Lam_f: {f}")
+    for i, (NMSE, f, t, o) in enumerate(results):
+        print(f"{i + 1}. NMSE: {NMSE}, Lam_f: {f}, Lam_t: {t}, Lam_o: {o}")
 
 
 def gridSearch_nkp():
@@ -108,5 +110,5 @@ def gridSearch_nkp():
         print(f"{i + 1}. mean_NMSE: {NMSE}, NMSE_concatenate: {NMSE_concatenate}, Nkp: {nkp}")
 
 
-gridSearch_Relobralo()
+gridSearch_neurons()
 

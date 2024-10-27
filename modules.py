@@ -8,7 +8,7 @@ import math
 from dataSet import compute_derivatives
 import matplotlib.pyplot as plt
 
-omega_zero = 5
+omega_zero = 5.0
 
 
 class BatchLinear(nn.Linear, MetaModule):
@@ -32,45 +32,57 @@ class BatchLinear(nn.Linear, MetaModule):
 
 
 class Sine(nn.Module):
-    def __init(self):
+    def __init__(self):
         super().__init__()
+        self.omega_0 = nn.Parameter(torch.tensor(omega_zero))
+        self.cc = 0
 
     def forward(self, input):
+        self.cc += 1
+        if self.cc % 1000 == 0:
+            print('omega_0: ', self.omega_0.item())
         # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of factor 30
-        return torch.sin(omega_zero * input)
+        return torch.sin(self.omega_0 * input)
 
 
 class Rowdy(nn.Module):
     def __init__(self):
         super().__init__()
-        self.alpha_1 = nn.Parameter(torch.tensor(0.1))
-        self.alpha_2 = nn.Parameter(torch.tensor(0.1))
-        self.alpha_3 = nn.Parameter(torch.tensor(0.1))
-        self.alpha_4 = nn.Parameter(torch.tensor(0.1))
-        self.alpha_5 = nn.Parameter(torch.tensor(0.1))
+        self.alpha_1 = nn.Parameter(torch.tensor(0.5))
+        self.alpha_2 = nn.Parameter(torch.tensor(0.5))
+        #self.alpha_3 = nn.Parameter(torch.tensor(0.5))
+        #self.alpha_4 = nn.Parameter(torch.tensor(0.5))
+        #self.alpha_5 = nn.Parameter(torch.tensor(0.5))
+
+        self.omega_0 = nn.Parameter(torch.tensor(omega_zero))
+        self.omega_1 = nn.Parameter(torch.tensor(omega_zero*2))
+        self.omega_2 = nn.Parameter(torch.tensor(omega_zero*4))
+        #self.omega_3 = nn.Parameter(torch.tensor(omega_zero*8))
+        #self.omega_4 = nn.Parameter(torch.tensor(omega_zero * 16))
+        #self.omega_5 = nn.Parameter(torch.tensor(omega_zero * 32))
+
         self.cc = 0
 
     def forward(self, input):
         self.cc += 1
-        output = (torch.sin(omega_zero * input) +
-                  self.alpha_1 * torch.sin(2 * omega_zero * input) +
-                  self.alpha_2 * torch.sin(3 * omega_zero * input) +
-                  self.alpha_3 * torch.sin(4 * omega_zero * input) +
-                  self.alpha_4 * torch.sin(5 * omega_zero * input) +
-                  self.alpha_5 * torch.sin(6 * omega_zero * input))
+        output = (torch.sin(self.omega_0 * input) +
+                  self.alpha_1 * torch.sin(self.omega_1 * input) +
+                  self.alpha_2 * torch.sin(self.omega_2 * input))
 
         if self.cc % 1000 == 0:
-            print(f"Iteration {self.cc}: alpha_1 = {self.alpha_1.item()}, "
+            print(f"Iteration {self.cc}: "
+                  f"alpha_1 = {self.alpha_1.item()}, "
                   f"alpha_2 = {self.alpha_2.item()}, "
-                  f"alpha_3 = {self.alpha_3.item()}, "
-                  f"alpha_4 = {self.alpha_4.item()}, "
-                  f"alpha_5 = {self.alpha_5.item()}")
+                  f"omega_0 = {self.omega_0.item()}, "
+                  f"omega_1 = {self.omega_1.item()}, "
+                  f"omega_2 = {self.omega_2.item()}, ")
+
             '''input_np = input.cpu().detach().numpy()
             output_np = output.cpu().detach().numpy()
 
             plt.figure()
             plt.plot(input_np, output_np)
-            plt.title('Activation Function Plot')
+            plt.title('Activation Function Plot with All Trainable Omega')
             plt.xlabel('Input')
             plt.ylabel('Output')
             plt.grid(True)
@@ -91,7 +103,7 @@ class FCBlock(MetaModule):
 
         # Dictionary that maps nonlinearity name to the respective function, initialization, and, if applicable,
         # special first-layer initialization scheme
-        nls_and_inits = {'sine': (Rowdy(), first_layer_sine_init, sine_init),
+        nls_and_inits = {'sine': (Sine(), first_layer_sine_init, sine_init),
                          'relu': (nn.ReLU(inplace=True), init_weights_normal, None),
                          'silu': (nn.SiLU(), init_weights_xavier, None),  # first_layer_silu_init
                          'sigmoid': (nn.Sigmoid(), init_weights_xavier, None),
@@ -177,6 +189,7 @@ class PINNet(nn.Module):
         self.mode = mode
         self.num_hidden_layers = num_hidden_layers
         self.hidden_features = hidden_features
+        self.cc = 0
         self.net = FCBlock(in_features=in_features, out_features=out_features, num_hidden_layers=num_hidden_layers,
                            hidden_features=hidden_features, outermost_linear=True, nonlinearity=type,
                            weight_init=None)
@@ -193,10 +206,28 @@ class PINNet(nn.Module):
         x.requires_grad_(True)
         y.requires_grad_(True)
         o = self.net(torch.cat((x, y), dim=-1))
+        all_dudxx, all_dudyy, all_dudxxxx, all_dudyyyy, all_dudxxyy = [], [], [], [], []
+
         if training:
-            o[self.num_known_points:, :] = o[self.num_known_points:, :] / self.omegas ** 2  # TODO
-        dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
-        output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)
+            o[self.num_known_points:, :] = o[self.num_known_points:, :] / self.omegas ** 2
+        for i in range(o.shape[1]):  # iterating over the second dimension
+            dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o[:, i])
+            # Collect all derivatives for each mode
+            all_dudxx.append(dudxx.squeeze(dim=1))  # Squeeze the dimension
+            all_dudyy.append(dudyy.squeeze(dim=1))  # Squeeze the dimension
+            all_dudxxxx.append(dudxxxx.squeeze(dim=1))  # Squeeze the dimension
+            all_dudyyyy.append(dudyyyy.squeeze(dim=1))  # Squeeze the dimension
+            all_dudxxyy.append(dudxxyy.squeeze(dim=1))  # Squeeze the dimension
+
+        # Concatenate collected derivatives for all modes along the batch dimension
+        all_dudxx = torch.stack(all_dudxx, dim=-1)  # Shape [2000, 10]
+        all_dudyy = torch.stack(all_dudyy, dim=-1)  # Shape [2000, 10]
+        all_dudxxxx = torch.stack(all_dudxxxx, dim=-1)  # Shape [2000, 10]
+        all_dudyyyy = torch.stack(all_dudyyyy, dim=-1)  # Shape [2000, 10]
+        all_dudxxyy = torch.stack(all_dudxxyy, dim=-1)  # Shape [2000, 10]
+
+
+        output = torch.cat((o, all_dudxx, all_dudyy, all_dudxxxx, all_dudyyyy, all_dudxxyy), dim=-1)
         return {'model_in': coords, 'model_out': output}
 
 

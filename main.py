@@ -26,26 +26,26 @@ import visualization
 # 8:  mean_NMSE:  1.209315, NMSE_concatenate:  [0.01829, 0.07926, 0.12973, 1.84745, 0.154, 0.63983, 2.58554, 2.61701, 1.51657, 2.50547]
 #  6: mean_NMSE:  1.342902, NMSE_concatenate:  [0.08535, 0.36563, 0.78512, 1.91829, 1.08113, 2.08094, 1.82291, 2.09519, 1.07323, 2.12123]
 
-#def main(rho, alpha, tmp):
+#def main(n, l):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
-modules.set_seed(3)  # 3 per 13, 4 per 15 # NMSE 0.3232
+modules.set_seed(3)  # 3 per 13, 4 per 15
 print('device: ', device)
-num_epochs = 450  # 150
+num_epochs = 400
 n_step = 50
 num_known_points = 10
 size_norm = 10
 batch_size = 1
 total_length = 1
 lr = 0.001
-batch_size_domain = 2000
+batch_size_domain = 500
 num_hidden_layers = 2
-hidden_features = 128
+hidden_features = 200
 
-temperature = 10e-5
+temperature = 10e-3
 rho = 0.999
 alpha = 0.99
 
-lambda_f = 1  # 10e4 per singolo modo 15
+lambda_f = 10  # 10e4 per singolo modo 15
 lambda_t = 1
 lambda_o = 1
 
@@ -59,7 +59,7 @@ mode = 'pinn'
 clip_grad = 1.0
 use_lbfgs = False
 relo = True
-third_loss = False
+third_loss = True
 adim = True
 dynamic_CP = False
 num_loss = 3 if third_loss else 2
@@ -71,7 +71,8 @@ freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.3
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
          165.3, ]  # ViolinPlateFOD3
 
-#eigen_mode = [15]
+#eigen_mode = [14]
+#eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 15]
 eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
 n_d = 6
@@ -183,19 +184,19 @@ known_disp_concatenate = torch.stack(known_disp_concatenate, dim=1)
 full_known_disp_concatenate = torch.stack(full_known_disp_concatenate, dim=1)
 omegas = torch.tensor(omegas).to(device)
 
-for i in range(len(omegas)):  # MAC
+'''for i in range(len(omegas)):  # MAC
     for j in range(len(omegas)):
         numerator = abs(torch.matmul(full_known_disp_concatenate[:, i].T,
                                      full_known_disp_concatenate[:, j])) ** 2
 
-        denominator = (torch.matmul(full_known_disp_concatenate[:, i].T,
+        denominator = (torch.matmul(full_known_disp_concatenate[:, i].T,z
                                     full_known_disp_concatenate[:, i])
                        * torch.matmul(full_known_disp_concatenate[:, j].T,
                                       full_known_disp_concatenate[:, j]))
         MAC = numerator / denominator
         off_diagonal_MAC = MAC
         loss_ortogonality = torch.sum(torch.abs(off_diagonal_MAC))
-        print(f" {i + 6} e {j + 6}: {loss_ortogonality.item()}")
+        print(f" {i + 6} e {j + 6}: {loss_ortogonality.item()}")'''
 plate = config.dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H,
                                         total_length=total_length, den=den,
                                         omegas=omegas, batch_size_domain=batch_size_domain,

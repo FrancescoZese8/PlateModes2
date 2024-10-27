@@ -76,7 +76,7 @@ def visualise_prediction(x_p, y_p, omegas, full_known_disp, full_known_disp_conc
         u_real = full_known_disp_concatenate[:, i:i+1].numpy().reshape(image_height, image_width)
         min_val = torch.min(u_plot)
         max_val = torch.max(u_plot)
-        #u_plot = (-1 + 2 * (u_plot - min_val) / (max_val - min_val)) * max_norm  # NORM
+        u_plot = (-1 + 2 * (u_plot - min_val) / (max_val - min_val)) * max_norm  # NORM
         u_plot = u_plot.cpu().detach().numpy().reshape(image_height, image_width)  # CUDA
 
         NMSE = round((np.linalg.norm(u_real - u_plot) ** 2) / (np.linalg.norm(u_real) ** 2), 5)
