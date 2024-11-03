@@ -98,7 +98,7 @@ def gridSearch_lambda():
 
 def gridSearch_nkp():
     results = []
-    nkp = [6, 8, 10, 12, 14]
+    nkp = [10, 12, 14, 16]
     for n in nkp:
         config.num_known_points = n
         NMSE, NMSE_concatenate = main.main(n)
@@ -110,5 +110,5 @@ def gridSearch_nkp():
         print(f"{i + 1}. mean_NMSE: {NMSE}, NMSE_concatenate: {NMSE_concatenate}, Nkp: {nkp}")
 
 
-gridSearch_neurons()
+gridSearch_nkp()
 

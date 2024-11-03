@@ -7,11 +7,8 @@ import math
 EPS = 1e-6
 
 
-def gradient(y, x, grad_outputs=None):
-    if grad_outputs is None:
-        grad_outputs = torch.ones_like(y)
-    grad = torch.autograd.grad(y, [x], grad_outputs=grad_outputs, create_graph=True)[0]
-    return grad
+def gradient(y, x):
+    return torch.autograd.grad(y, x, grad_outputs=torch.ones_like(y), create_graph=True)[0]
 
 
 def compute_derivatives(x, y, u):
@@ -126,9 +123,9 @@ class KirchhoffDataset(Dataset):
 
         if not self.dynamic_CP:
 
-            x_random_left = (torch.rand((self.batch_size_domain//2,)) * self.W/2).to(self.device)
+            x_random_left = (torch.rand((self.batch_size_domain // 2,)) * self.W / 2).to(self.device)
             x_random_right = self.W - x_random_left
-            y_random = (torch.rand((self.batch_size_domain//2,)) * self.H).to(self.device)
+            y_random = (torch.rand((self.batch_size_domain // 2,)) * self.H).to(self.device)
 
             x = torch.cat((self.x_t, x_random_left, x_random_right), dim=0)
             y = torch.cat((self.y_t, y_random, y_random), dim=0)
@@ -232,16 +229,26 @@ class KirchhoffDataset(Dataset):
 
     def compute_loss(self, x, y, preds, eval=False):
         # governing equation loss
+        '''no = len(self.omegas)
+        u_t = np.squeeze(preds[:len(self.x_t), 0:no])
+        # print('preds ', preds.shape)
+        u = np.squeeze(preds[:, 0:no])
+        # print('u ', u.shape)
+        dudxx = np.squeeze(preds[:, no:no + 1])
+        dudyy = np.squeeze(preds[:, no + 1:no + 2])
+        dudxxxx = np.squeeze(preds[:, no + 2:no + 3])
+        dudyyyy = np.squeeze(preds[:, no + 3:no + 4])
+        dudxxyy = np.squeeze(preds[:, no + 4:no + 5])'''
         no = len(self.omegas)
         u_t = np.squeeze(preds[:len(self.x_t), 0:no])
         # print('preds ', preds.shape)
         u = np.squeeze(preds[len(self.x_t):, 0:no])
         # print('u ', u.shape)
-        dudxx = np.squeeze(preds[len(self.x_t):, no:2*no])
-        dudyy = np.squeeze(preds[len(self.x_t):, 2*no:3*no])
-        dudxxxx = np.squeeze(preds[len(self.x_t):, 3*no:4*no])
-        dudyyyy = np.squeeze(preds[len(self.x_t):, 4*no:5*no])
-        dudxxyy = np.squeeze(preds[len(self.x_t):, 5*no:6*no])
+        dudxx = np.squeeze(preds[len(self.x_t):, no:2 * no])
+        dudyy = np.squeeze(preds[len(self.x_t):, 2 * no:3 * no])
+        dudxxxx = np.squeeze(preds[len(self.x_t):, 3 * no:4 * no])
+        dudyyyy = np.squeeze(preds[len(self.x_t):, 4 * no:5 * no])
+        dudxxyy = np.squeeze(preds[len(self.x_t):, 5 * no:6 * no])
 
         if len(self.omegas) == 1:
             u_t = u_t.unsqueeze(-1)
@@ -250,18 +257,12 @@ class KirchhoffDataset(Dataset):
         err_t = self.known_disp_concatenate - u_t
         # print('dudxxxx: ', dudxxxx.shape, 'omegas: ', self.omegas.shape, 'u: ', u.shape, 'err_t: ', err_t.shape)
 
-        if len(self.omegas) == 1:
+        '''if len(self.omegas) == 1:
             f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (self.omegas ** 2) * u)
         else:
-            f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (self.omegas ** 2) * u)
-            #f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * torch.sum((self.omegas ** 2) * u, dim=-1))
-            # print('omegas: ', self.omegas)
+            f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * torch.sum((self.omegas ** 2) * u, dim=-1))'''
 
-        # print('AAA: ', self.den * self.T / self.D * self.omegas)
-        # print('AAA: ', self.adim_k * self.omegas)
-        # print('1: ,', (dudxxxx + 2 * dudxxyy + dudyyyy).shape)
-        # print('2: ,', (self.adim_k * torch.sum((self.omegas ** 2) * u, dim=-1)).shape)
-        # print('f: ', f.shape)
+        f = (dudxxxx + 2 * dudxxyy + dudyyyy) - (self.adim_k * (self.omegas ** 2) * u)
 
         self.residuals = f
 
@@ -281,9 +282,8 @@ class KirchhoffDataset(Dataset):
             off_diagonal_MAC = MAC_matrix - torch.diag(torch.diag(MAC_matrix))
             loss_ortogonality = torch.sum(torch.abs(off_diagonal_MAC))
             L_o = loss_ortogonality ** 2 * self.lambda_o'''
-            L_o = (abs(dudxx[:self.batch_size_domain//2,]) - abs(dudxx[self.batch_size_domain//2:,]))**2
-                   #+ abs(dudxxxx[:self.batch_size_domain//2,]) - abs(dudxxxx[self.batch_size_domain//2:,])) ** 2
-            #L_o = (abs(u[:self.batch_size_domain // 2, :]) - abs(u[self.batch_size_domain // 2:, :])) ** 2
+
+            L_o = (abs(dudxx[:self.batch_size_domain // 2, ]) - abs(dudxx[self.batch_size_domain // 2:, ])) ** 2
 
             return {'L_f': L_f, 'L_t': L_t, 'L_o': L_o}
         else:

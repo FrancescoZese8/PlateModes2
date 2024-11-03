@@ -206,25 +206,28 @@ class PINNet(nn.Module):
         x.requires_grad_(True)
         y.requires_grad_(True)
         o = self.net(torch.cat((x, y), dim=-1))
+        '''if training:
+            o[self.num_known_points:, :] = o[self.num_known_points:, :] / self.omegas ** 2  # TODO
+        dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o)
+        output = torch.cat((o, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy), dim=-1)'''
         all_dudxx, all_dudyy, all_dudxxxx, all_dudyyyy, all_dudxxyy = [], [], [], [], []
 
         if training:
             o[self.num_known_points:, :] = o[self.num_known_points:, :] / self.omegas ** 2
-        for i in range(o.shape[1]):  # iterating over the second dimension
+        for i in range(o.shape[1]):
             dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = compute_derivatives(x, y, o[:, i])
-            # Collect all derivatives for each mode
-            all_dudxx.append(dudxx.squeeze(dim=1))  # Squeeze the dimension
-            all_dudyy.append(dudyy.squeeze(dim=1))  # Squeeze the dimension
-            all_dudxxxx.append(dudxxxx.squeeze(dim=1))  # Squeeze the dimension
-            all_dudyyyy.append(dudyyyy.squeeze(dim=1))  # Squeeze the dimension
-            all_dudxxyy.append(dudxxyy.squeeze(dim=1))  # Squeeze the dimension
 
-        # Concatenate collected derivatives for all modes along the batch dimension
-        all_dudxx = torch.stack(all_dudxx, dim=-1)  # Shape [2000, 10]
-        all_dudyy = torch.stack(all_dudyy, dim=-1)  # Shape [2000, 10]
-        all_dudxxxx = torch.stack(all_dudxxxx, dim=-1)  # Shape [2000, 10]
-        all_dudyyyy = torch.stack(all_dudyyyy, dim=-1)  # Shape [2000, 10]
-        all_dudxxyy = torch.stack(all_dudxxyy, dim=-1)  # Shape [2000, 10]
+            all_dudxx.append(dudxx.squeeze(dim=1))
+            all_dudyy.append(dudyy.squeeze(dim=1))
+            all_dudxxxx.append(dudxxxx.squeeze(dim=1))
+            all_dudyyyy.append(dudyyyy.squeeze(dim=1))
+            all_dudxxyy.append(dudxxyy.squeeze(dim=1))
+
+        all_dudxx = torch.stack(all_dudxx, dim=-1)
+        all_dudyy = torch.stack(all_dudyy, dim=-1)
+        all_dudxxxx = torch.stack(all_dudxxxx, dim=-1)
+        all_dudyyyy = torch.stack(all_dudyyyy, dim=-1)
+        all_dudxxyy = torch.stack(all_dudxxyy, dim=-1)
 
 
         output = torch.cat((o, all_dudxx, all_dudyy, all_dudxxxx, all_dudyyyy, all_dudxxyy), dim=-1)

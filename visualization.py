@@ -5,6 +5,14 @@ from matplotlib import cm
 from matplotlib.colors import Normalize
 
 
+def compute_nmse(u_real, u_pred):
+    mse = np.mean((u_real - u_pred) ** 2)
+
+    variance = np.mean((u_real - np.mean(u_real)) ** 2)
+
+    nmse = mse / variance if variance != 0 else np.inf
+    return round(nmse, 5)
+
 def visualise_init(known_disp, known_disp_map, full_known_disp, x_p, y_p, eigen_mode, image_width,
                    image_height, H, W, H_p, W_p, sample_step, dist_bound, n_d, size_norm, color):
     known_disps = [known_disp_map.get((round(i, n_d), round(j, n_d)), 0) for index, (i, j) in
@@ -76,10 +84,10 @@ def visualise_prediction(x_p, y_p, omegas, full_known_disp, full_known_disp_conc
         u_real = full_known_disp_concatenate[:, i:i+1].numpy().reshape(image_height, image_width)
         min_val = torch.min(u_plot)
         max_val = torch.max(u_plot)
-        u_plot = (-1 + 2 * (u_plot - min_val) / (max_val - min_val)) * max_norm  # NORM
+        #u_plot = (-1 + 2 * (u_plot - min_val) / (max_val - min_val)) * max_norm  # NORM
         u_plot = u_plot.cpu().detach().numpy().reshape(image_height, image_width)  # CUDA
 
-        NMSE = round((np.linalg.norm(u_real - u_plot) ** 2) / (np.linalg.norm(u_real) ** 2), 5)
+        NMSE = compute_nmse(u_real, u_plot)
         NMSE_concatenate.append(NMSE)
         mean_NMSE += NMSE
 

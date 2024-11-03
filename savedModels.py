@@ -1,26 +1,27 @@
 from modules import PINNet
-import config
+import modules
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import main
 
-model = config.modules.PINNet(omegas=config.omegas, num_known_points=config.num_known_points,
-                              num_hidden_layers=config.num_hidden_layers,
-                              hidden_features=config.hidden_features,
-                              out_features=len(config.eigen_mode), type=config.opt_model, mode=config.mode)
-model.load_state_dict(torch.load('/nas/home/fzese/plateModes/model_weights_no_gov_18nkp.pth'))  #model_weights1.pth
-model = model.to(config.device)
+model = modules.PINNet(omegas=main.omegas, num_known_points=main.num_known_points,
+                              num_hidden_layers=main.num_hidden_layers,
+                              hidden_features=main.hidden_features,
+                              out_features=len(main.eigen_mode), type=main.opt_model, mode=main.mode)
+model.load_state_dict(torch.load('/nas/home/fzese/plateModes/model_weights_6nkp.pth'))
+model = model.to(main.device)
 model.eval()
 
 n_d = 6
-W, H = 0.23, 0.40
+W, H = 0.20, 0.35
 W_p, H_p = W, H
-n_samp_x, n_samp_y = 23, 40
+n_samp_x, n_samp_y = 20, 35
 
-omegas = [(config.freqs[i] * 2 * torch.pi) for i in config.eigen_mode]
+omegas = [(main.freqs[i] * 2 * torch.pi) for i in main.eigen_mode]
 W_norm = max(omegas)
 omegas = [omegas[i] / W_norm for i in range(len(omegas))]
-L_norm = (config.D / (config.den * config.T * W_norm ** 2)) ** (1 / 4) / 1.4  # TODO
+L_norm = (main.D / (main.den * main.T * W_norm ** 2)) ** (1 / 4) / 1.4
 W = W / L_norm
 H = H / L_norm
 sample_step = W / n_samp_x
@@ -36,17 +37,17 @@ x_p = torch.tensor(x_p, dtype=torch.float)
 y_p = torch.tensor(y_p, dtype=torch.float)
 x_p = x_p[..., None, None]
 y_p = y_p[..., None, None]
-x = x_p.to(config.device)  # CUDA
-y = y_p.to(config.device)
+x = x_p.to(main.device)  # CUDA
+y = y_p.to(main.device)
 
 c = {'coords': torch.cat([x, y], dim=-1).float()}
 pred = model(c, training=False)['model_out']
-no = len(config.omegas)
+no = len(main.omegas)
 u_pred, dudxx, dudyy, dudxxxx, dudyyyy, dudxxyy = (
     pred[:, 0:no], pred[no:no + 1], pred[no + 1:no + 2], pred[no + 2:no + 3], pred[no + 3:no + 4],
     pred[no + 4:no + 5]
 )
-for i in range(len(config.omegas)):
+for i in range(len(main.omegas)):
     u_plot = u_pred[:, i:i + 1]
     u_plot = u_plot.cpu().detach().numpy().reshape(n_samp_y, n_samp_x)  # CUDA
 
@@ -57,11 +58,11 @@ for i in range(len(config.omegas)):
     # Primo plot (plot 3D)
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(X, Y, u_plot, cmap=config.color)
+    ax.plot_surface(X, Y, u_plot, cmap=main.color)
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    ax.set_title('Predicted Displacement mode: {}'.format(config.eigen_mode[i]))
+    ax.set_title('Predicted Displacement mode: {}'.format(main.eigen_mode[i]))
 
     plt.show()
 

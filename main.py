@@ -1,7 +1,6 @@
 from torch.utils.data import DataLoader
 import loss
 import training
-import config
 import torch
 import modules
 import dataSet
@@ -26,13 +25,22 @@ import visualization
 # 8:  mean_NMSE:  1.209315, NMSE_concatenate:  [0.01829, 0.07926, 0.12973, 1.84745, 0.154, 0.63983, 2.58554, 2.61701, 1.51657, 2.50547]
 #  6: mean_NMSE:  1.342902, NMSE_concatenate:  [0.08535, 0.36563, 0.78512, 1.91829, 1.08113, 2.08094, 1.82291, 2.09519, 1.07323, 2.12123]
 
-#def main(n, l):
+# no thirdloss, 200n, 400e, 50s
+# 18: mean_NMSE:  0.020184, NMSE_concatenate:  [0.00128, 0.00214, 0.00685, 0.00351, 0.00225, 0.00262, 0.01187, 0.08523, 0.02279, 0.0633]
+# 16: mean_NMSE:  0.040623, NMSE_concatenate:  [0.00089, 0.00275, 0.0051, 0.00903, 0.00732, 0.00901, 0.01553, 0.1196, 0.09372, 0.14328]
+# 14: mean_NMSE:  0.07695, NMSE_concatenate:  [0.00222, 0.00384, 0.00584, 0.00763, 0.00426, 0.02657, 0.02778, 0.08009, 0.27489, 0.3364]
+# 12: mean_NMSE:  0.14662, NMSE_concatenate:  [0.00262, 0.00427, 0.00588, 0.00974, 0.04209, 0.11205, 0.05824, 0.75925, 0.28025, 0.1919]
+# 10: mean_NMSE: 0.191826, NMSE_concatenate:  [0.00786, 0.00971, 0.02151, 0.10418, 0.04516, 0.23316, 0.34682, 0.56288, 0.44015, 0.14683]
+# 8: mean_NMSE:  0.34408, NMSE_concatenate:  [0.09512, 0.01225, 0.0796, 0.67553, 0.16313, 0.29241, 0.81355, 0.41927, 0.73744, 0.1525]
+# 6: mean_NMSE:  0.52513, NMSE_concatenate:  [0.19583, 0.0558, 0.17323, 0.77725, 0.73591, 0.67812, 0.83571, 0.97573, 0.61992, 0.20387]
+
+# def main(n):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # CUDA
 modules.set_seed(3)  # 3 per 13, 4 per 15
 print('device: ', device)
 num_epochs = 400
 n_step = 50
-num_known_points = 10
+num_known_points = 18
 size_norm = 10
 batch_size = 1
 total_length = 1
@@ -45,7 +53,7 @@ temperature = 10e-3
 rho = 0.999
 alpha = 0.99
 
-lambda_f = 10  # 10e4 per singolo modo 15
+lambda_f = 10
 lambda_t = 1
 lambda_o = 1
 
@@ -59,7 +67,7 @@ mode = 'pinn'
 clip_grad = 1.0
 use_lbfgs = False
 relo = True
-third_loss = True
+third_loss = False
 adim = True
 dynamic_CP = False
 num_loss = 3 if third_loss else 2
@@ -71,9 +79,8 @@ freqs = [None, None, None, None, None, None, 6.499, 7.0867, 15.854, 17.953, 20.3
          97.758, 110.03, 110.36, 113.12, 122.91, 123.74, 126.64, 131.98, 136.81, 141.2, 152.5, 160.25, 162.56,
          165.3, ]  # ViolinPlateFOD3
 
-#eigen_mode = [14]
-#eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 15]
-eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+# eigen_mode = [14]
+eigen_mode = [6, 7, 8, 9, 10, 11, 12, 13, 15, 16]
 
 n_d = 6
 W, H, T, E, nue, den = 0.20, 0.35, 0.005, 10e6, 0.28, 420
@@ -89,7 +96,7 @@ else:
     omegas = [(freqs[i] * 2 * torch.pi) for i in eigen_mode]
     W_norm = max(omegas)
     omegas = [omegas[i] / W_norm for i in range(len(omegas))]
-    L_norm = (D / (den * T * W_norm ** 2)) ** (1 / 4) / 1.4  # TODO
+    L_norm = (D / (den * T * W_norm ** 2)) ** (1 / 4) / 1.4
     print('L_norm: ', L_norm)
     W = W / L_norm
     H = H / L_norm
@@ -197,24 +204,24 @@ omegas = torch.tensor(omegas).to(device)
         off_diagonal_MAC = MAC
         loss_ortogonality = torch.sum(torch.abs(off_diagonal_MAC))
         print(f" {i + 6} e {j + 6}: {loss_ortogonality.item()}")'''
-plate = config.dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H,
-                                        total_length=total_length, den=den,
-                                        omegas=omegas, batch_size_domain=batch_size_domain,
-                                        known_disp_concatenate=known_disp_concatenate, x_t=x_t,
-                                        y_t=y_t, adim_k=adim_k,
-                                        max_norm=max_norm,
-                                        third_loss=third_loss, device=device,
-                                        sample_step=sample_step,
-                                        dist_bound=dist_bound,
-                                        n_samp_x=n_samp_x, n_samp_y=n_samp_y,
-                                        dynamic_CP=dynamic_CP, lambda_f=lambda_f,
-                                        lambda_t=lambda_t, lambda_o=lambda_o)
+plate = dataSet.KirchhoffDataset(T=T, nue=nue, E=E, D=D, W=W, H=H,
+                                 total_length=total_length, den=den,
+                                 omegas=omegas, batch_size_domain=batch_size_domain,
+                                 known_disp_concatenate=known_disp_concatenate, x_t=x_t,
+                                 y_t=y_t, adim_k=adim_k,
+                                 max_norm=max_norm,
+                                 third_loss=third_loss, device=device,
+                                 sample_step=sample_step,
+                                 dist_bound=dist_bound,
+                                 n_samp_x=n_samp_x, n_samp_y=n_samp_y,
+                                 dynamic_CP=dynamic_CP, lambda_f=lambda_f,
+                                 lambda_t=lambda_t, lambda_o=lambda_o)
 
 data_loader = DataLoader(plate, shuffle=True, batch_size=batch_size, pin_memory=False, num_workers=0)
-model = config.modules.PINNet(omegas=omegas, num_known_points=num_known_points,
-                              num_hidden_layers=num_hidden_layers,
-                              hidden_features=hidden_features,
-                              out_features=len(eigen_mode), type=opt_model, mode=mode)
+model = modules.PINNet(omegas=omegas, num_known_points=num_known_points,
+                       num_hidden_layers=num_hidden_layers,
+                       hidden_features=hidden_features,
+                       out_features=len(eigen_mode), type=opt_model, mode=mode)
 model = model.to(device)  # CUDA
 
 history_loss = {'L_f': [], 'L_t': [], 'L_o': []}
@@ -241,25 +248,24 @@ training.train(model=model, train_dataloader=data_loader, epochs=num_epochs, n_s
                clip_grad=clip_grad,
                use_lbfgs=use_lbfgs, max_epochs_without_improvement=max_epochs_without_improvement,
                relo=relo)
+torch.save(model.state_dict(), '/nas/home/fzese/plateModes/model_weights_18nkp.pth')
 model.eval()
-
-mean_NMSE, NMSE_concatenate = config.visualization.visualise_prediction(x_p, y_p, omegas,
-                                                                        full_known_disp,
-                                                                        full_known_disp_concatenate,
-                                                                        eigen_mode, max_norm,
-                                                                        device,
-                                                                        image_width=n_samp_x,
-                                                                        image_height=n_samp_y, H=H,
-                                                                        W=W, H_p=H_p, W_p=W_p,
-                                                                        model=model,
-                                                                        sample_step=sample_step,
-                                                                        dist_bound=dist_bound,
-                                                                        color=color)
+mean_NMSE, NMSE_concatenate = visualization.visualise_prediction(x_p, y_p, omegas,
+                                                                 full_known_disp,
+                                                                 full_known_disp_concatenate,
+                                                                 eigen_mode, max_norm,
+                                                                 device,
+                                                                 image_width=n_samp_x,
+                                                                 image_height=n_samp_y, H=H,
+                                                                 W=W, H_p=H_p, W_p=W_p,
+                                                                 model=model,
+                                                                 sample_step=sample_step,
+                                                                 dist_bound=dist_bound,
+                                                                 color=color)
 print('mean_NMSE: ', mean_NMSE)
 print('NMSE_concatenate: ', NMSE_concatenate)
 
-config.visualization.visualise_loss(third_loss, metric_lam, history_loss, history_lambda)
-torch.save(model.state_dict(), '/nas/home/fzese/plateModes/model_weights_no_gov_18nkp.pth')
+visualization.visualise_loss(third_loss, metric_lam, history_loss, history_lambda)
 
 # Per ricaricare il modello in futuro
 # model = PINNet(omegas, num_known_points, num_hidden_layers, hidden_features, ...)
@@ -271,4 +277,4 @@ torch.save(model.state_dict(), '/nas/home/fzese/plateModes/model_weights_no_gov_
 #    print(f"Layer: {name} | Shape: {param.shape}")
 #    print(param)
 
-#return mean_NMSE, NMSE_concatenate
+# return mean_NMSE, NMSE_concatenate
